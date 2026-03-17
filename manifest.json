@@ -1,0 +1,22 @@
+{
+  "name": "The Royal Kitchen Smart Menu",
+  "short_name": "Royal Kitchen",
+  "description": "Smart real-time ordering system for The Royal Kitchen",
+  "start_url": "/?table=01&mode=tablet&open=fullscreen",
+  "display": "standalone",
+  "orientation": "portrait",
+  "theme_color": "#050505",
+  "background_color": "#050505",
+  "icons": [
+    {
+      "src": "/royal-icon-192x192.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "/royal-icon-512x512.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}
