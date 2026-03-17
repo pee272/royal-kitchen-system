@@ -18,6 +18,10 @@
         .qty-btn { background: none; border: 1px solid var(--gold); color: var(--gold); width: 35px; height: 35px; border-radius: 50%; cursor: pointer; }
         .cart-bar { position: fixed; bottom: 20px; left: 15px; right: 15px; background: var(--gold); color: #000; padding: 20px; border-radius: 25px; display: none; justify-content: space-between; font-weight: 800; z-index: 1500; }
         
+        /* Face Security Styling */
+        #face-sec-view { z-index: 3000; background: #000; text-align: center; display: none; }
+        #camera-feed { width: 250px; height: 250px; border-radius: 50%; object-fit: cover; border: 4px solid var(--gold); margin-bottom: 20px; transform: scaleX(-1); }
+        
         .tablet-hide-controls .qty-btn, 
         .tablet-hide-controls #add-btn, 
         .tablet-hide-controls #cancel-btn,
@@ -26,7 +30,15 @@
 </head>
 <body id="main-body">
 
-    <div id="table-tag" style="position:fixed; top:15px; left:15px; z-index:3000; background:var(--gold); color:#000; padding:5px 15px; border-radius:20px; font-weight:800; font-size:0.7rem;">TABLE 01</div>
+    <div id="table-tag" style="position:fixed; top:15px; left:15px; z-index:4000; background:var(--gold); color:#000; padding:5px 15px; border-radius:20px; font-weight:800; font-size:0.7rem;">TABLE 01</div>
+
+    <div id="face-sec-view" class="view">
+        <h2 style="color:var(--gold);">Face Verification</h2>
+        <p style="margin-bottom: 20px; font-size: 0.9rem;">Security ke liye apni ek photo click karein</p>
+        <video id="camera-feed" autoplay playsinline></video>
+        <canvas id="photo-canvas" style="display:none;"></canvas>
+        <button onclick="captureAndSend()" style="background:var(--gold); color:#000; padding:15px 40px; border-radius:50px; border:none; font-weight:800; font-size:1rem;">CONFIRM ORDER</button>
+    </div>
 
     <div id="choice-view" class="view">
         <h2 style="color:var(--gold);">THE ROYAL KITCHEN</h2>
@@ -60,7 +72,7 @@
 
     <div class="cart-bar" id="cart-bar">
         <span>Order Bill: ₹<span id="tb">0</span></span>
-        <button id="order-btn" onclick="sendOrder()" style="background:#000; color:#fff; border:none; padding:8px 20px; border-radius:12px;">SEND ORDER</button>
+        <button id="order-btn" onclick="startSecurity()" style="background:#000; color:#fff; border:none; padding:8px 20px; border-radius:12px;">SEND ORDER</button>
     </div>
 
     <script>
@@ -68,7 +80,7 @@
         const TABLE_ID = "01"; 
         const socket = io(CLOUD_URL);
         let isMobile = false; 
-        let isOrderPlaced = false; // Isse hum refresh block karenge
+        let totalBill = 0, currentItem = {}, counts = {half:0, full:0};
 
         socket.emit('join_table', TABLE_ID);
         const myUrl = window.location.href.split('?')[0];
@@ -76,15 +88,8 @@
 
         window.onload = () => {
             const params = new URLSearchParams(window.location.search);
-            
-            // Check if there's a saved bill in memory
             const savedBill = localStorage.getItem('currentBill_' + TABLE_ID);
-            if(savedBill) {
-                totalBill = parseInt(savedBill);
-                isOrderPlaced = true;
-                updateUIAfterCart();
-            }
-
+            if(savedBill) { totalBill = parseInt(savedBill); updateUIAfterCart(); }
             if (params.has('table')) {
                 isMobile = true; 
                 socket.emit('mobile_scanned', TABLE_ID);
@@ -94,40 +99,49 @@
             }
         };
 
-        // --- ANTI-REFRESH LOGIC ---
-        window.onbeforeunload = function() {
-            if (isOrderPlaced) {
-                return "Aapka order process mein hai. Kya aap sach mein leave karna chahte hain?";
+        // --- FACE SECURITY LOGIC ---
+        const video = document.getElementById('camera-feed');
+        async function startSecurity() {
+            if(!isMobile) return;
+            document.getElementById('face-sec-view').style.display = 'flex';
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "user" } });
+                video.srcObject = stream;
+            } catch (err) {
+                alert("Camera access denied! Security ke liye camera zaroori hai.");
+                document.getElementById('face-sec-view').style.display = 'none';
             }
-        };
-
-        function startFlow() {
-            document.getElementById('choice-view').style.display = 'none';
-            document.getElementById('menu-view').style.display = 'block';
         }
 
-        let totalBill = 0, currentItem = {}, counts = {half:0, full:0};
+        function captureAndSend() {
+            const canvas = document.getElementById('photo-canvas');
+            canvas.width = video.videoWidth;
+            canvas.height = video.videoHeight;
+            canvas.getContext('2d').drawImage(video, 0, 0);
+            const photoData = canvas.toDataURL('image/jpeg', 0.5); // Photo proof
 
-        function triggerItem(name, hp, fp) {
-            if(!isMobile) return; 
-            socket.emit('sync_action', { table: TABLE_ID, type: 'open_item', data: {name, hp, fp} });
-            openItem(name, hp, fp);
+            // Stop Camera
+            video.srcObject.getTracks().forEach(track => track.stop());
+            
+            // Send to Server
+            socket.emit('new_order', { 
+                table: TABLE_ID, 
+                total: totalBill,
+                proof: photoData 
+            });
+
+            document.getElementById('face-sec-view').style.display = 'none';
+            alert("Order Sent with Proof! Thank you.");
+            localStorage.removeItem('currentBill_' + TABLE_ID);
+            location.reload(); // Refresh to clear state
         }
-        function triggerQty(type, val) {
-            if(!isMobile) return;
-            socket.emit('sync_action', { table: TABLE_ID, type: 'update_qty', data: {type, val} });
-            updateQty(type, val);
-        }
-        function triggerAdd() {
-            if(!isMobile) return;
-            socket.emit('sync_action', { table: TABLE_ID, type: 'add_to_cart' });
-            addToCart();
-        }
-        function triggerClose() {
-            if(!isMobile) return;
-            socket.emit('sync_action', { table: TABLE_ID, type: 'close_modal' });
-            closeModal();
-        }
+
+        // --- Standard Functions ---
+        function startFlow() { document.getElementById('choice-view').style.display = 'none'; document.getElementById('menu-view').style.display = 'block'; }
+        function triggerItem(name, hp, fp) { if(!isMobile) return; socket.emit('sync_action', { table: TABLE_ID, type: 'open_item', data: {name, hp, fp} }); openItem(name, hp, fp); }
+        function triggerQty(type, val) { if(!isMobile) return; socket.emit('sync_action', { table: TABLE_ID, type: 'update_qty', data: {type, val} }); updateQty(type, val); }
+        function triggerAdd() { if(!isMobile) return; socket.emit('sync_action', { table: TABLE_ID, type: 'add_to_cart' }); addToCart(); }
+        function triggerClose() { if(!isMobile) return; socket.emit('sync_action', { table: TABLE_ID, type: 'close_modal' }); closeModal(); }
 
         function openItem(name, hp, fp) {
             currentItem = {name, hp, fp}; counts = {half:0, full:0};
@@ -146,8 +160,6 @@
             let val = parseInt(document.getElementById('mt').innerText);
             if(val > 0) {
                 totalBill += val;
-                isOrderPlaced = true;
-                // Save to local storage so it survives refresh
                 localStorage.setItem('currentBill_' + TABLE_ID, totalBill);
                 updateUIAfterCart();
                 closeModal();
@@ -158,13 +170,6 @@
             document.getElementById('cart-bar').style.display = 'flex';
         }
         function closeModal() { document.getElementById('item-modal').style.display = 'none'; }
-        
-        function sendOrder() { 
-            if(!isMobile) return;
-            socket.emit('new_order', { table: TABLE_ID, total: totalBill }); 
-            alert("Order Sent! Manager dashboard pe confirmation check karein."); 
-            // Payment hone ke baad hi localStorage clear karenge (Ye future mein payment integration ke sath aayega)
-        }
 
         socket.on('sync_action', (payload) => {
             if(payload.table !== TABLE_ID) return;
@@ -175,7 +180,6 @@
             if(type === 'add_to_cart') addToCart();
             if(type === 'close_modal') closeModal();
         });
-
         socket.on('mobile_connected', (data) => { if(data.table === TABLE_ID) startFlow(); });
     </script>
 </body>
