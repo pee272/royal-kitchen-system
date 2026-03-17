@@ -18,13 +18,10 @@
         .qty-btn { background: none; border: 1px solid var(--gold); color: var(--gold); width: 35px; height: 35px; border-radius: 50%; cursor: pointer; }
         .cart-bar { position: fixed; bottom: 20px; left: 15px; right: 15px; background: var(--gold); color: #000; padding: 20px; border-radius: 25px; display: none; justify-content: space-between; font-weight: 800; z-index: 1500; }
         
-        /* Tablet/Laptop Mode: Control Hiding */
         .tablet-hide-controls .qty-btn, 
         .tablet-hide-controls #add-btn, 
         .tablet-hide-controls #cancel-btn,
-        .tablet-hide-controls #order-btn {
-            display: none !important;
-        }
+        .tablet-hide-controls #order-btn { display: none !important; }
     </style>
 </head>
 <body id="main-body">
@@ -71,6 +68,7 @@
         const TABLE_ID = "01"; 
         const socket = io(CLOUD_URL);
         let isMobile = false; 
+        let isOrderPlaced = false; // Isse hum refresh block karenge
 
         socket.emit('join_table', TABLE_ID);
         const myUrl = window.location.href.split('?')[0];
@@ -78,14 +76,28 @@
 
         window.onload = () => {
             const params = new URLSearchParams(window.location.search);
+            
+            // Check if there's a saved bill in memory
+            const savedBill = localStorage.getItem('currentBill_' + TABLE_ID);
+            if(savedBill) {
+                totalBill = parseInt(savedBill);
+                isOrderPlaced = true;
+                updateUIAfterCart();
+            }
+
             if (params.has('table')) {
                 isMobile = true; 
                 socket.emit('mobile_scanned', TABLE_ID);
                 startFlow();
             } else {
-                // Tablet Mode: Body pe class laga do buttons chhupane ke liye
                 document.getElementById('main-body').classList.add('tablet-hide-controls');
-                console.log("Tablet Mode Activated: Controls Hidden");
+            }
+        };
+
+        // --- ANTI-REFRESH LOGIC ---
+        window.onbeforeunload = function() {
+            if (isOrderPlaced) {
+                return "Aapka order process mein hai. Kya aap sach mein leave karna chahte hain?";
             }
         };
 
@@ -134,16 +146,24 @@
             let val = parseInt(document.getElementById('mt').innerText);
             if(val > 0) {
                 totalBill += val;
-                document.getElementById('tb').innerText = totalBill;
-                document.getElementById('cart-bar').style.display = 'flex';
+                isOrderPlaced = true;
+                // Save to local storage so it survives refresh
+                localStorage.setItem('currentBill_' + TABLE_ID, totalBill);
+                updateUIAfterCart();
                 closeModal();
             }
         }
+        function updateUIAfterCart() {
+            document.getElementById('tb').innerText = totalBill;
+            document.getElementById('cart-bar').style.display = 'flex';
+        }
         function closeModal() { document.getElementById('item-modal').style.display = 'none'; }
+        
         function sendOrder() { 
             if(!isMobile) return;
             socket.emit('new_order', { table: TABLE_ID, total: totalBill }); 
-            alert("Order Sent!"); 
+            alert("Order Sent! Manager dashboard pe confirmation check karein."); 
+            // Payment hone ke baad hi localStorage clear karenge (Ye future mein payment integration ke sath aayega)
         }
 
         socket.on('sync_action', (payload) => {
