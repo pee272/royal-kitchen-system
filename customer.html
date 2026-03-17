@@ -36,7 +36,7 @@
 
     <div id="menu-view">
         <h2 style="font-weight: 800;">Our Menu</h2>
-        <div class="dish-card" onclick="openItem('Paneer Tikka', 180, 320)">
+        <div class="dish-card" onclick="triggerItem('Paneer Tikka', 180, 320)">
             <img src="https://images.unsplash.com/photo-1567188040759-fb8a883dc6d8?w=200" class="dish-img">
             <div><h3>Paneer Tikka</h3><small style="color:var(--gold)">H: 180 | F: 320</small></div>
         </div>
@@ -45,12 +45,12 @@
     <div id="item-modal" class="modal-box">
         <h2 id="modal-item-name" style="color:var(--gold);">Item</h2>
         <div style="display:flex; justify-content:space-around; margin: 25px 0;">
-             <div>Half <br><br> <button class="qty-btn" onclick="updateQty('half', -1)">-</button> <span id="hc" style="font-size:1.2rem; margin:0 10px;">0</span> <button class="qty-btn" onclick="updateQty('half', 1)">+</button></div>
-             <div>Full <br><br> <button class="qty-btn" onclick="updateQty('full', -1)">-</button> <span id="fc" style="font-size:1.2rem; margin:0 10px;">0</span> <button class="qty-btn" onclick="updateQty('full', 1)">+</button></div>
+             <div>Half <br><br> <button class="qty-btn" onclick="triggerQty('half', -1)">-</button> <span id="hc" style="font-size:1.2rem; margin:0 10px;">0</span> <button class="qty-btn" onclick="triggerQty('half', 1)">+</button></div>
+             <div>Full <br><br> <button class="qty-btn" onclick="triggerQty('full', -1)">-</button> <span id="fc" style="font-size:1.2rem; margin:0 10px;">0</span> <button class="qty-btn" onclick="triggerQty('full', 1)">+</button></div>
         </div>
         <h3>Total: ₹<span id="mt">0</span></h3>
-        <button onclick="addToCart()" style="width:100%; background:var(--gold); padding:15px; border-radius:15px; border:none; font-weight:800; margin-top:10px;">ADD TO ORDER</button>
-        <p onclick="closeModal()" style="opacity:0.5; margin-top:15px; cursor:pointer;">Cancel</p>
+        <button onclick="triggerAdd()" style="width:100%; background:var(--gold); padding:15px; border-radius:15px; border:none; font-weight:800; margin-top:10px;">ADD TO ORDER</button>
+        <p onclick="triggerClose()" style="opacity:0.5; margin-top:15px; cursor:pointer;">Cancel</p>
     </div>
 
     <div class="cart-bar" id="cart-bar">
@@ -63,16 +63,13 @@
         const TABLE_ID = "01"; 
         const socket = io(CLOUD_URL);
 
-        // Laptop/Tablet should join the room immediately
         socket.emit('join_table', TABLE_ID);
-
         const myUrl = window.location.href.split('?')[0];
         document.getElementById('qr-img').src = `https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${myUrl}?table=${TABLE_ID}`;
 
         window.onload = () => {
             const params = new URLSearchParams(window.location.search);
             if (params.has('table')) {
-                // This is the Mobile Scan
                 socket.emit('mobile_scanned', TABLE_ID);
                 startFlow();
             }
@@ -84,6 +81,26 @@
         }
 
         let totalBill = 0, currentItem = {}, counts = {half:0, full:0};
+
+        // --- Trigger Functions (Sends data to socket) ---
+        function triggerItem(name, hp, fp) {
+            socket.emit('sync_action', { table: TABLE_ID, type: 'open_item', data: {name, hp, fp} });
+            openItem(name, hp, fp);
+        }
+        function triggerQty(type, val) {
+            socket.emit('sync_action', { table: TABLE_ID, type: 'update_qty', data: {type, val} });
+            updateQty(type, val);
+        }
+        function triggerAdd() {
+            socket.emit('sync_action', { table: TABLE_ID, type: 'add_to_cart' });
+            addToCart();
+        }
+        function triggerClose() {
+            socket.emit('sync_action', { table: TABLE_ID, type: 'close_modal' });
+            closeModal();
+        }
+
+        // --- Execution Functions (Updates UI) ---
         function openItem(name, hp, fp) {
             currentItem = {name, hp, fp}; counts = {half:0, full:0};
             document.getElementById('modal-item-name').innerText = name;
@@ -101,34 +118,26 @@
             let val = parseInt(document.getElementById('mt').innerText);
             if(val > 0) {
                 totalBill += val;
-                updateUIAfterCart();
-                // Send sync signal to Laptop
-                socket.emit('sync_cart', { table: TABLE_ID, bill: totalBill });
+                document.getElementById('tb').innerText = totalBill;
+                document.getElementById('cart-bar').style.display = 'flex';
                 closeModal();
             }
-        }
-        function updateUIAfterCart() {
-            document.getElementById('tb').innerText = totalBill;
-            document.getElementById('cart-bar').style.display = 'flex';
         }
         function closeModal() { document.getElementById('item-modal').style.display = 'none'; }
         function sendOrder() { socket.emit('new_order', { table: TABLE_ID, total: totalBill }); alert("Order Sent!"); }
 
-        // --- Sync Listeners ---
-        socket.on('mobile_connected', (data) => {
-            if(data.table === TABLE_ID) {
-                console.log("Mobile connected, switching Laptop to Menu...");
-                startFlow();
-            }
+        // --- Listen for Sync from other devices ---
+        socket.on('sync_action', (payload) => {
+            if(payload.table !== TABLE_ID) return;
+            startFlow(); // Ensure menu is open
+            const { type, data } = payload;
+            if(type === 'open_item') openItem(data.name, data.hp, data.fp);
+            if(type === 'update_qty') updateQty(data.type, data.val);
+            if(type === 'add_to_cart') addToCart();
+            if(type === 'close_modal') closeModal();
         });
 
-        socket.on('update_client_view', (data) => {
-            if(data.table === TABLE_ID) {
-                totalBill = data.bill;
-                updateUIAfterCart();
-                startFlow(); // Force Laptop to Menu if it's still on QR
-            }
-        });
+        socket.on('mobile_connected', (data) => { if(data.table === TABLE_ID) startFlow(); });
     </script>
 </body>
 </html>
