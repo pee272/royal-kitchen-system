@@ -30,6 +30,7 @@
         <div style="background:rgba(255,255,255,0.03); padding:30px; border-radius:35px; border:1px solid var(--border);">
             <img id="qr-img" src="" style="width: 150px; border: 5px solid #fff; border-radius: 10px;">
         </div>
+        <p style="margin-top:20px; opacity:0.6;">Scan to Start Syncing</p>
     </div>
 
     <div id="menu-view">
@@ -159,14 +160,21 @@
             document.getElementById('cart-bar').style.display = 'flex';
         }
 
-        // --- PAYMENT SYNC LOGIC ---
+        // --- IMPROVED PAYMENT SYNC (NO RELOAD) ---
         function handlePayment() {
             if(confirm("Confirm Payment of ₹" + totalBill + "?")) {
-                // Laptop ko batana ki payment ho gayi hai
                 socket.emit('sync_action', { table: TABLE_ID, type: 'PAY_SUCCESS' });
-                alert("Payment Successful!");
-                location.reload(); 
+                softReset();
+                alert("Payment Successful! Connection remains active.");
             }
+        }
+
+        function softReset() {
+            totalBill = 0;
+            document.getElementById('tb').innerText = 0;
+            document.getElementById('cart-bar').style.display = 'none';
+            document.getElementById('item-modal').style.display = 'none';
+            showMenuView(); // Wapas menu pe le jao
         }
 
         function closeModal() {
@@ -181,10 +189,14 @@
             if(p.type === 'UPDATE_QTY') updateQty(p.data.t, p.data.v, p.data.hp, p.data.fp);
             if(p.type === 'ADD_CART') addToCart();
             
-            // LAPTOP RESET LOGIC
+            // LAPTOP RESET WITHOUT RELOAD
             if(p.type === 'PAY_SUCCESS') {
-                alert("Payment Received! Resetting...");
-                location.reload(); // Laptop bhi refresh ho jayega
+                softReset();
+                // Laptop par wapas QR dikhao
+                if(!isMobile) {
+                    document.getElementById('choice-view').style.display = 'flex';
+                    document.getElementById('menu-view').style.display = 'none';
+                }
             }
         });
     </script>
