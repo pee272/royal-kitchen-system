@@ -30,7 +30,6 @@
         <div style="background:rgba(255,255,255,0.03); padding:30px; border-radius:35px; border:1px solid var(--border);">
             <img id="qr-img" src="" style="width: 150px; border: 5px solid #fff; border-radius: 10px;">
         </div>
-        <p style="margin-top:20px; opacity:0.6;">Scan to Start Syncing</p>
     </div>
 
     <div id="menu-view">
@@ -103,22 +102,29 @@
             document.getElementById('modal-item-name').innerText = name;
             document.getElementById('hc').innerText = 0; 
             document.getElementById('fc').innerText = 0;
-            document.getElementById('mt').innerText = 0; // Reset Item Total
+            document.getElementById('mt').innerText = 0;
             document.getElementById('item-modal').style.display = 'block';
         }
 
+        // --- FIXED TRIGGER ---
         function triggerQty(t, v) {
             if(!isMobile) return;
-            socket.emit('sync_action', { table: TABLE_ID, type: 'UPDATE_QTY', data: {t, v} });
-            updateQty(t, v);
+            // Hum prices bhi bhej rahe hain sync ke liye
+            socket.emit('sync_action', { 
+                table: TABLE_ID, 
+                type: 'UPDATE_QTY', 
+                data: {t, v, hp: currentItem.hp, fp: currentItem.fp} 
+            });
+            updateQty(t, v, currentItem.hp, currentItem.fp);
         }
 
-        function updateQty(t, v) {
+        // --- FIXED UPDATE ---
+        function updateQty(t, v, hp, fp) {
             counts[t] = Math.max(0, counts[t]+v);
             document.getElementById(t==='half'?'hc':'fc').innerText = counts[t];
             
-            // HAR CLICK PAR PRICE UPDATE HOGA
-            let itemTotal = (counts.half * currentItem.hp) + (counts.full * currentItem.fp);
+            // Ab laptop ke paas price direct aa raha hai message se
+            let itemTotal = (counts.half * hp) + (counts.full * fp);
             document.getElementById('mt').innerText = itemTotal;
         }
 
@@ -161,7 +167,7 @@
             if(p.table !== TABLE_ID) return;
             if(p.type === 'FORCE_START') showMenuView();
             if(p.type === 'OPEN_MODAL') openItem(p.data.n, p.data.h, p.data.f);
-            if(p.type === 'UPDATE_QTY') updateQty(p.data.t, p.data.v);
+            if(p.type === 'UPDATE_QTY') updateQty(p.data.t, p.data.v, p.data.hp, p.data.fp);
             if(p.type === 'ADD_CART') addToCart();
         });
     </script>
