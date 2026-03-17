@@ -16,13 +16,9 @@
         .modal-box { width: 85%; max-width: 400px; background: #111; padding: 30px 20px; border-radius: 40px; border: 1px solid var(--gold); text-align: center; position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); display: none; z-index: 2000; }
         .qty-btn { background: none; border: 1px solid var(--gold); color: var(--gold); width: 35px; height: 35px; border-radius: 50%; cursor: pointer; }
         .cart-bar { position: fixed; bottom: 20px; left: 15px; right: 15px; background: var(--gold); color: #000; padding: 15px; border-radius: 25px; display: none; flex-direction: column; align-items: center; font-weight: 800; z-index: 1500; }
-        
-        /* Face Security View */
         #face-sec-view { z-index: 3000; background: #000; text-align: center; display: none; flex-direction: column; align-items: center; justify-content: center; }
         #camera-feed { width: 250px; height: 250px; border-radius: 50%; object-fit: cover; border: 4px solid var(--gold); margin-bottom: 20px; transform: scaleX(-1); }
-        
         .tablet-hide-controls .qty-btn, .tablet-hide-controls #add-btn, .tablet-hide-controls .order-btn-box { display: none !important; }
-        .modal-active #choice-view { display: none !important; }
     </style>
 </head>
 <body id="main-body">
@@ -34,7 +30,6 @@
         <div style="background:rgba(255,255,255,0.03); padding:30px; border-radius:35px; border:1px solid var(--border);">
             <img id="qr-img" src="" style="width: 150px; border: 5px solid #fff; border-radius: 10px;">
         </div>
-        <p style="margin-top:20px; opacity:0.6;">Scan to connect Laptop & Mobile</p>
     </div>
 
     <div id="menu-view">
@@ -45,27 +40,28 @@
         </div>
     </div>
 
-    <div id="face-sec-view" class="view">
-        <h2 style="color:var(--gold);">Verification Required</h2>
-        <video id="camera-feed" autoplay playsinline></video>
-        <canvas id="photo-canvas" style="display:none;"></canvas>
-        <button onclick="captureAndSend()" style="background:var(--gold); color:#000; padding:15px 40px; border-radius:50px; border:none; font-weight:800;">CONFIRM & ORDER</button>
-    </div>
-
     <div id="item-modal" class="modal-box">
         <h2 id="modal-item-name" style="color:var(--gold);">Item</h2>
         <div style="display:flex; justify-content:space-around; margin: 25px 0;">
              <div>Half <br><button class="qty-btn" onclick="triggerQty('half', -1)">-</button> <span id="hc">0</span> <button class="qty-btn" onclick="triggerQty('half', 1)">+</button></div>
              <div>Full <br><button class="qty-btn" onclick="triggerQty('full', -1)">-</button> <span id="fc">0</span> <button class="qty-btn" onclick="triggerQty('full', 1)">+</button></div>
         </div>
-        <button id="add-btn" onclick="triggerAdd()" style="width:100%; background:var(--gold); padding:15px; border-radius:15px; border:none; font-weight:800;">ADD TO CART</button>
+        <h3>Item Total: ₹<span id="mt">0</span></h3>
+        <button id="add-btn" onclick="triggerAdd()" style="width:100%; background:var(--gold); padding:15px; border-radius:15px; border:none; font-weight:800; margin-top:10px;">ADD TO CART</button>
     </div>
 
     <div class="cart-bar" id="cart-bar">
-        <span style="margin-bottom:10px;">Total Bill: ₹<span id="tb">0</span></span>
-        <div class="order-btn-box" style="width:100%;">
+        <span>Cart Total: ₹<span id="tb">0</span></span>
+        <div class="order-btn-box" style="width:100%; margin-top:10px;">
             <button onclick="startSecurity()" style="background:#000; color:#fff; border:none; padding:12px; border-radius:12px; width:100%; font-weight:bold;">SEND ORDER</button>
         </div>
+    </div>
+
+    <div id="face-sec-view" class="view">
+        <h2 style="color:var(--gold);">Verification</h2>
+        <video id="camera-feed" autoplay playsinline></video>
+        <canvas id="photo-canvas" style="display:none;"></canvas>
+        <button onclick="captureAndSend()" style="background:var(--gold); color:#000; padding:15px 40px; border-radius:50px; border:none; font-weight:800;">CONFIRM & ORDER</button>
     </div>
 
     <script>
@@ -74,7 +70,6 @@
         const socket = io(CLOUD_URL);
         let isMobile = false, totalBill = 0, currentItem = {}, counts = {half:0, full:0};
 
-        // QR Setup
         const myUrl = window.location.href.split('?')[0];
         document.getElementById('qr-img').src = `https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${myUrl}?table=${TABLE_ID}`;
 
@@ -84,23 +79,18 @@
             const params = new URLSearchParams(window.location.search);
             if (params.has('table')) {
                 isMobile = true;
-                // Sabse important line: Laptop ko signal bhej ki "Main connect ho gaya"
                 socket.emit('sync_action', { table: TABLE_ID, type: 'FORCE_START' });
                 showMenuView();
             } else {
-                // Laptop mode: Buttons hide kar do
                 document.getElementById('main-body').classList.add('tablet-hide-controls');
             }
         };
 
-        // View Switchers
         function showMenuView() {
             document.getElementById('choice-view').style.display = 'none';
-            document.getElementById('face-sec-view').style.display = 'none';
             document.getElementById('menu-view').style.display = 'block';
         }
 
-        // Action Logic
         function triggerItem(n, h, f) {
             if(!isMobile) return;
             socket.emit('sync_action', { table: TABLE_ID, type: 'OPEN_MODAL', data: {n, h, f} });
@@ -110,7 +100,9 @@
         function openItem(name, hp, fp) {
             currentItem = {name, hp, fp}; counts = {half:0, full:0};
             document.getElementById('modal-item-name').innerText = name;
-            document.getElementById('hc').innerText = 0; document.getElementById('fc').innerText = 0;
+            document.getElementById('hc').innerText = 0; 
+            document.getElementById('fc').innerText = 0;
+            document.getElementById('mt').innerText = 0;
             document.getElementById('item-modal').style.display = 'block';
         }
 
@@ -119,9 +111,13 @@
             socket.emit('sync_action', { table: TABLE_ID, type: 'UPDATE_QTY', data: {t, v} });
             updateQty(t, v);
         }
+
         function updateQty(t, v) {
             counts[t] = Math.max(0, counts[t]+v);
             document.getElementById(t==='half'?'hc':'fc').innerText = counts[t];
+            // LIVE CALCULATION SYNC
+            let modalTotal = (counts.half * currentItem.hp) + (counts.full * currentItem.fp);
+            document.getElementById('mt').innerText = modalTotal;
         }
 
         function triggerAdd() {
@@ -129,14 +125,15 @@
             socket.emit('sync_action', { table: TABLE_ID, type: 'ADD_CART' });
             addToCart();
         }
+
         function addToCart() {
-            totalBill += (counts.half*currentItem.hp) + (counts.full*currentItem.fp);
+            let modalTotal = parseInt(document.getElementById('mt').innerText);
+            totalBill += modalTotal;
             document.getElementById('tb').innerText = totalBill;
             document.getElementById('cart-bar').style.display = 'flex';
             document.getElementById('item-modal').style.display = 'none';
         }
 
-        // Face Security
         async function startSecurity() {
             if(!isMobile) return;
             document.getElementById('face-sec-view').style.display = 'flex';
@@ -150,17 +147,14 @@
             canvas.width = video.videoWidth; canvas.height = video.videoHeight;
             canvas.getContext('2d').drawImage(video, 0, 0);
             const proof = canvas.toDataURL('image/jpeg', 0.5);
-            
             socket.emit('new_order', { table: TABLE_ID, total: totalBill, proof: proof });
             video.srcObject.getTracks().forEach(t => t.stop());
-            alert("Order Sent Successfully!");
-            location.reload(); 
+            alert("Order Placed!");
+            location.reload();
         }
 
-        // --- THE MASTER SYNC ---
         socket.on('sync_action', (p) => {
             if(p.table !== TABLE_ID) return;
-
             if(p.type === 'FORCE_START') showMenuView();
             if(p.type === 'OPEN_MODAL') openItem(p.data.n, p.data.h, p.data.f);
             if(p.type === 'UPDATE_QTY') updateQty(p.data.t, p.data.v);
