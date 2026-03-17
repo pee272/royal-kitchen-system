@@ -88,13 +88,28 @@
             socket.emit('join_table', TABLE_ID);
             
             const params = new URLSearchParams(window.location.search);
+            const saved = localStorage.getItem('royal_table_' + TABLE_ID);
+            let savedData = saved ? JSON.parse(saved) : null;
+
             if (params.has('table')) {
                 isMobile = true;
-                // AGAR NAYA SCAN HAI, TOH PURANA DATA DHOKAR FRESH KAR DO
-                localStorage.removeItem('royal_table_' + TABLE_ID);
                 
-                socket.emit('sync_action', { table: TABLE_ID, type: 'FORCE_START' });
-                showMenuView();
+                // --- SMART RESET LOGIC ---
+                // Agar URL mein table hai, iska matlab naya scan hua hai
+                // Hum URL clean kar denge taaki next refresh par reset na ho
+                if (window.performance.navigation.type !== 1) { 
+                    // type 1 matlab refresh, 0 matlab naya load (scan)
+                    localStorage.removeItem('royal_table_' + TABLE_ID);
+                    savedData = null;
+                }
+
+                if (savedData && savedData.isPaid) {
+                    showThankYou(false);
+                } else {
+                    socket.emit('sync_action', { table: TABLE_ID, type: 'FORCE_START' });
+                    showMenuView();
+                    loadState();
+                }
             } else {
                 document.body.classList.add('tablet-hide-controls');
             }
@@ -112,7 +127,8 @@
                 const data = JSON.parse(saved);
                 totalBill = data.totalBill || 0;
                 hasOrdered = data.hasOrdered || false;
-                if(totalBill > 0) {
+                isPaid = data.isPaid || false;
+                if(totalBill > 0 && !isPaid) {
                     document.getElementById('tb').innerText = totalBill;
                     document.getElementById('cart-bar').style.display = 'flex';
                     if(hasOrdered) {
@@ -230,9 +246,7 @@
             if(p.type === 'OPEN_MODAL') openItem(p.data.n, p.data.h, p.data.f);
             if(p.type === 'UPDATE_QTY') updateQty(p.data.t, p.data.v, p.data.hp, p.data.fp);
             if(p.type === 'ADD_CART') addToCart();
-            if(p.type === 'PAY_SUCCESS' && !isMobile) {
-                location.reload(); 
-            }
+            if(p.type === 'PAY_SUCCESS' && !isMobile) location.reload();
         });
     </script>
 </body>
