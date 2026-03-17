@@ -10,7 +10,6 @@
         html, body { margin: 0; padding: 0; width: 100%; height: 100%; font-family: 'Poppins', sans-serif; color: #fff; background: #000; overflow-x: hidden; }
         .view { position: fixed; inset: 0; display: none; flex-direction: column; align-items: center; justify-content: center; background: #000; z-index: 500; }
         #choice-view { display: flex; z-index: 1000; }
-        .choice-card { background: rgba(255,255,255,0.03); border: 1px solid var(--border); padding: 30px; border-radius: 35px; width: 80%; max-width: 400px; margin-bottom: 20px; text-align: center;}
         #menu-view { display: none; padding: 20px; min-height: 100vh; background: #050505; position: relative; z-index: 600; padding-top: 60px; }
         .dish-card { background: var(--glass); border: 1px solid var(--border); margin-bottom: 15px; padding: 18px; border-radius: 28px; display: flex; align-items: center; cursor: pointer; }
         .dish-img { width: 70px; height: 70px; border-radius: 15px; margin-right: 15px; object-fit: cover; border: 1px solid var(--gold); }
@@ -32,24 +31,22 @@
     <div id="success-view" class="view">
         <h1 style="color:var(--gold); font-size: 4rem;">✓</h1>
         <h2>Payment Successful!</h2>
-        <p>Order Clear ho gaya hai.</p>
+        <p>Order table par aa raha hai. Shukriya!</p>
     </div>
 
-    <div id="table-tag" style="position:fixed; top:15px; left:15px; z-index:4000; background:var(--gold); color:#000; padding:5px 15px; border-radius:20px; font-weight:800; font-size:0.7rem;">TABLE 01</div>
-
     <div id="face-sec-view" class="view">
-        <h2 style="color:var(--gold);">Security Check</h2>
-        <p style="font-size: 0.8rem; margin-bottom: 15px;">Order confirm karne ke liye apni photo click karein</p>
+        <h2 style="color:var(--gold);">Face Verification</h2>
         <video id="camera-feed" autoplay playsinline></video>
         <canvas id="photo-canvas" style="display:none;"></canvas>
-        <button onclick="captureAndSend()" style="background:var(--gold); color:#000; padding:15px 40px; border-radius:50px; border:none; font-weight:800; cursor:pointer;">CONFIRM & SEND ORDER</button>
-        <p onclick="closeSecurity()" style="margin-top:20px; opacity:0.6; cursor:pointer;">Back to Menu</p>
+        <button onclick="captureAndSend()" style="background:var(--gold); color:#000; padding:15px 40px; border-radius:50px; border:none; font-weight:800;">CONFIRM PHOTO & ORDER</button>
     </div>
 
     <div id="choice-view" class="view">
         <h2 style="color:var(--gold);">THE ROYAL KITCHEN</h2>
-        <div class="choice-card"><img id="qr-img" src="" style="width: 150px; border: 5px solid #fff; border-radius: 10px;"></div>
-        <div class="choice-card" onclick="startFlow()" style="border: 1.5px solid var(--gold); cursor:pointer;"><h3>Manual Tablet Menu</h3></div>
+        <div style="background:rgba(255,255,255,0.03); padding:30px; border-radius:35px; text-align:center; border:1px solid var(--border);">
+            <img id="qr-img" src="" style="width: 150px; border: 5px solid #fff; border-radius: 10px;">
+        </div>
+        <div onclick="startFlow()" style="margin-top:20px; border:1.5px solid var(--gold); padding:20px; border-radius:30px; cursor:pointer;"><h3>Manual Tablet Menu</h3></div>
     </div>
 
     <div id="menu-view">
@@ -67,16 +64,14 @@
              <div>Full <br><button class="qty-btn" onclick="triggerQty('full', -1)">-</button> <span id="fc">0</span> <button class="qty-btn" onclick="triggerQty('full', 1)">+</button></div>
         </div>
         <button id="add-btn" onclick="triggerAdd()" style="width:100%; background:var(--gold); padding:15px; border-radius:15px; border:none; font-weight:800;">ADD TO CART</button>
-        <p onclick="triggerClose()" style="margin-top:15px; opacity:0.5; cursor:pointer;">Cancel</p>
     </div>
 
     <div class="cart-bar" id="cart-bar">
         <span>Total Bill: ₹<span id="tb">0</span></span>
         <div class="btn-row">
-            <button id="main-send-btn" onclick="startSecurity()" style="background:#000; color:#fff; border:none; padding:12px; border-radius:12px; width:100%; font-weight:800;">SEND ORDER</button>
-            
-            <button id="add-more-btn" onclick="closeModal()" style="display:none; background:#fff; color:#000; border:none; padding:10px; border-radius:12px; flex:1;">+ ADD MORE</button>
-            <button id="pay-btn" onclick="handlePayment()" style="display:none; background:#000; color:#fff; border:none; padding:10px; border-radius:12px; flex:1;">PAY NOW</button>
+            <button id="main-send-btn" onclick="startSecurity()" style="background:#000; color:#fff; border:none; padding:12px; border-radius:12px; width:100%; font-weight:bold;">SEND ORDER</button>
+            <button id="add-more-btn" onclick="closeModal()" style="display:none; background:#fff; color:#000; border:none; padding:10px; border-radius:12px; flex:1; font-weight:bold;">+ ADD MORE</button>
+            <button id="pay-btn" onclick="handlePayment()" style="display:none; background:#000; color:#fff; border:none; padding:10px; border-radius:12px; flex:1; font-weight:bold;">PAY NOW</button>
         </div>
     </div>
 
@@ -84,7 +79,7 @@
         const CLOUD_URL = "https://royal-kitchen.onrender.com"; 
         const TABLE_ID = "01"; 
         const socket = io(CLOUD_URL);
-        let isMobile = false, totalBill = 0, currentItem = {}, counts = {half:0, full:0}, orderConfirmed = false;
+        let isMobile = false, totalBill = 0, currentItem = {}, counts = {half:0, full:0};
 
         socket.emit('join_table', TABLE_ID);
         const myUrl = window.location.href.split('?')[0];
@@ -93,24 +88,16 @@
         window.onload = () => {
             const params = new URLSearchParams(window.location.search);
             const savedBill = localStorage.getItem('currentBill_' + TABLE_ID);
-            const isConfirmed = localStorage.getItem('orderConfirmed_' + TABLE_ID);
-            
             if(savedBill) { 
                 totalBill = parseInt(savedBill); 
                 updateUIAfterCart();
-                if(isConfirmed === 'true') setOrderState(true);
+                setOrderState(true); 
             }
-
-            if (params.has('table')) {
-                isMobile = true; socket.emit('mobile_scanned', TABLE_ID); startFlow();
-            } else {
-                document.getElementById('main-body').classList.add('tablet-hide-controls');
-            }
+            if (params.has('table')) { isMobile = true; socket.emit('mobile_scanned', TABLE_ID); startFlow(); }
+            else { document.getElementById('main-body').classList.add('tablet-hide-controls'); }
         };
 
         function setOrderState(placed) {
-            orderConfirmed = placed;
-            localStorage.setItem('orderConfirmed_' + TABLE_ID, placed);
             document.getElementById('main-send-btn').style.display = placed ? 'none' : 'block';
             document.getElementById('add-more-btn').style.display = placed ? 'block' : 'none';
             document.getElementById('pay-btn').style.display = placed ? 'block' : 'none';
@@ -123,12 +110,6 @@
             document.getElementById('camera-feed').srcObject = stream;
         }
 
-        function closeSecurity() {
-            const stream = document.getElementById('camera-feed').srcObject;
-            if(stream) stream.getTracks().forEach(t => t.stop());
-            document.getElementById('face-sec-view').style.display = 'none';
-        }
-
         function captureAndSend() {
             const video = document.getElementById('camera-feed');
             const canvas = document.getElementById('photo-canvas');
@@ -136,29 +117,27 @@
             canvas.getContext('2d').drawImage(video, 0, 0);
             const proof = canvas.toDataURL('image/jpeg', 0.5);
             
-            // Yahan order server par jayega
             socket.emit('new_order', { table: TABLE_ID, total: totalBill, proof: proof });
-            
-            closeSecurity();
+            video.srcObject.getTracks().forEach(t => t.stop());
+            document.getElementById('face-sec-view').style.display = 'none';
             setOrderState(true);
-            alert("Order Confirmed & Sent to Kitchen!");
+            alert("Order Sent with Face Proof!");
         }
 
         function handlePayment() {
-            if(!confirm("Final Payment karna chahte ho? Iske baad menu lock ho jayega.")) return;
+            if(!confirm("Complete Payment?")) return;
             socket.emit('sync_action', { table: TABLE_ID, type: 'payment_success' });
             showSuccess();
         }
 
         function showSuccess() {
-            localStorage.clear();
+            localStorage.removeItem('currentBill_' + TABLE_ID);
             document.getElementById('menu-view').style.display = 'none';
             document.getElementById('cart-bar').style.display = 'none';
             document.getElementById('success-view').style.display = 'flex';
             setTimeout(() => { location.href = window.location.href.split('?')[0]; }, 5000);
         }
 
-        // --- Core UI Functions ---
         function startFlow() { document.getElementById('choice-view').style.display = 'none'; document.getElementById('menu-view').style.display = 'block'; }
         function triggerItem(n, h, f) { if(!isMobile) return; socket.emit('sync_action', { table: TABLE_ID, type: 'open_item', data: {n, h, f} }); openItem(n, h, f); }
         function openItem(name, hp, fp) {
@@ -176,9 +155,7 @@
             localStorage.setItem('currentBill_' + TABLE_ID, totalBill);
             updateUIAfterCart();
             closeModal();
-            if(orderConfirmed) setOrderState(false); // Naya item add kiya toh wapas Send Order dikhao
         }
-        function triggerClose() { if(!isMobile) return; socket.emit('sync_action', { table: TABLE_ID, type: 'close_modal' }); closeModal(); }
         function closeModal() { document.getElementById('main-body').classList.remove('modal-active'); document.getElementById('item-modal').style.display = 'none'; }
         function updateUIAfterCart() { document.getElementById('tb').innerText = totalBill; document.getElementById('cart-bar').style.display = 'flex'; }
 
@@ -187,7 +164,6 @@
             if(p.type === 'open_item') openItem(p.data.n, p.data.h, p.data.f);
             if(p.type === 'update_qty') updateQty(p.data.t, p.data.v);
             if(p.type === 'add_to_cart') addToCart();
-            if(p.type === 'close_modal') closeModal();
             if(p.type === 'payment_success') showSuccess();
         });
     </script>
