@@ -13,15 +13,12 @@ app.get('/', (req, res) => {
 });
 
 io.on('connection', (socket) => {
-    socket.on('join_table', (tableId) => { 
-        socket.join(tableId); 
-    });
+    socket.on('join_table', (tableId) => { socket.join(tableId); });
 
     socket.on('mobile_scanned', (tableId) => { 
         io.to(tableId).emit('mobile_connected', { table: tableId }); 
     });
 
-    // Mobile se Laptop/Tablet sync karne ke liye
     socket.on('sync_cart', (data) => {
         io.to(data.table).emit('update_client_view', data);
     });
