@@ -12,7 +12,7 @@
         #choice-view { display: flex; z-index: 1000; }
         #menu-view { display: none; padding: 20px; min-height: 100vh; background: #050505; position: relative; z-index: 600; padding-top: 60px; }
         .dish-card { background: var(--glass); border: 1px solid var(--border); margin-bottom: 15px; padding: 18px; border-radius: 28px; display: flex; align-items: center; cursor: pointer; text-align: left; transition: opacity 0.3s; }
-        .dish-card.locked { opacity: 0.5; cursor: not-allowed; } /* Lock style */
+        .dish-card.locked { opacity: 0.5; cursor: not-allowed; }
         .dish-img { width: 70px; height: 70px; border-radius: 15px; margin-right: 15px; object-fit: cover; border: 1px solid var(--gold); }
         .modal-box { width: 85%; max-width: 400px; background: #111; padding: 30px 20px; border-radius: 40px; border: 1px solid var(--gold); text-align: center; position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); display: none; z-index: 2000; }
         .qty-btn { background: none; border: 1px solid var(--gold); color: var(--gold); width: 40px; height: 40px; border-radius: 50%; cursor: pointer; font-weight: bold; }
@@ -45,8 +45,8 @@
     <div id="item-modal" class="modal-box">
         <h2 id="modal-item-name" style="color:var(--gold);">Item</h2>
         <div style="display:flex; justify-content:space-around; margin: 20px 0;">
-             <div>Half <br><br> <button class="qty-btn" onclick="triggerQty('half', -1)">-</button> <span id="hc" style="font-size:1.2rem; margin:0 10px;">0</span> <button class="qty-btn" onclick="triggerQty('half', 1)">+</button></div>
-             <div>Full <br><br> <button class="qty-btn" onclick="triggerQty('full', -1)">-</button> <span id="fc" style="font-size:1.2rem; margin:0 10px;">0</span> <button class="qty-btn" onclick="triggerQty('full', 1)">+</button></div>
+             <div>Half <br><br> <button class="qty-btn" onclick="triggerQty('half', -1)">-</button> <span id="hc" style="font-size:1.2rem; margin:0 10px;">0</span> <button class="qty-btn" onclick="qtyMod('half', 1)">+</button></div>
+             <div>Full <br><br> <button class="qty-btn" onclick="triggerQty('full', -1)">-</button> <span id="fc" style="font-size:1.2rem; margin:0 10px;">0</span> <button class="qty-btn" onclick="qtyMod('full', 1)">+</button></div>
         </div>
         <h3>Item Total: ₹<span id="mt">0</span></h3>
         <button id="add-btn" onclick="triggerAdd()" style="width:100%; background:var(--gold); padding:15px; border-radius:15px; border:none; font-weight:800;">ADD TO CART</button>
@@ -87,29 +87,34 @@
 
         socket.on('connect', () => {
             socket.emit('join_table', TABLE_ID);
+            
             const params = new URLSearchParams(window.location.search);
             const saved = localStorage.getItem('royal_table_' + TABLE_ID);
             let savedData = saved ? JSON.parse(saved) : null;
 
             if (params.has('table')) {
                 isMobile = true;
-                if (window.performance.navigation.type !== 1) { 
+
+                // --- SMART PERSISTENCE LOGIC ---
+                // Agar payment ho chuki hai AUR naya scan hua hai (not refresh), tabhi reset karo
+                if (savedData && savedData.isPaid && window.performance.navigation.type !== 1) {
                     localStorage.removeItem('royal_table_' + TABLE_ID);
                     savedData = null;
                 }
+                
+                // Agar payment pending hai aur scan hua, toh purana data load karo (Resume)
                 if (savedData && savedData.isPaid) {
                     showThankYou(false);
                 } else {
                     socket.emit('sync_action', { table: TABLE_ID, type: 'FORCE_START' });
                     showMenuView();
-                    loadState();
+                    if(savedData) loadState(); 
                 }
             } else {
                 document.body.classList.add('tablet-hide-controls');
             }
         });
 
-        // --- NEW LOCK/UNLOCK FUNCTIONS ---
         function lockMenu() {
             isMenuLocked = true;
             document.querySelectorAll('.dish-card').forEach(card => card.classList.add('locked'));
@@ -118,11 +123,11 @@
         function unlockMenu() {
             isMenuLocked = false;
             document.querySelectorAll('.dish-card').forEach(card => card.classList.remove('locked'));
-            closeModal(); // Cart bar visibility manage karne ke liye
+            closeModal();
         }
 
         function triggerItem(n, h, f) {
-            if(!isMobile || isMenuLocked) return; // Locked hai toh click nahi hoga
+            if(!isMobile || isMenuLocked) return;
             socket.emit('sync_action', { table: TABLE_ID, type: 'OPEN_MODAL', data: {n, h, f} });
             openItem(n, h, f);
         }
@@ -138,9 +143,12 @@
                 const data = JSON.parse(saved);
                 totalBill = data.totalBill || 0;
                 hasOrdered = data.hasOrdered || false;
+                isPaid = data.isPaid || false;
                 isMenuLocked = data.isMenuLocked || false;
+                
                 if(isMenuLocked) lockMenu();
-                if(totalBill > 0 && !data.isPaid) {
+                
+                if(totalBill > 0 && !isPaid) {
                     document.getElementById('tb').innerText = totalBill;
                     document.getElementById('cart-bar').style.display = 'flex';
                     if(hasOrdered) {
@@ -214,7 +222,7 @@
             socket.emit('new_order', { table: TABLE_ID, total: totalBill, proof: proof });
             video.srcObject.getTracks().forEach(t => t.stop());
             hasOrdered = true;
-            lockMenu(); // Yahan lock kiya
+            lockMenu();
             document.getElementById('face-sec-view').style.display = 'none';
             document.getElementById('initial-btns').style.display = 'none';
             document.getElementById('post-order-btns').style.display = 'flex';
