@@ -18,7 +18,6 @@
         .cart-bar { position: fixed; bottom: 20px; left: 15px; right: 15px; background: var(--gold); color: #000; padding: 15px; border-radius: 25px; display: none; flex-direction: column; align-items: center; font-weight: 800; z-index: 1500; }
         .btn-group { display: flex; gap: 10px; width: 100%; margin-top: 10px; }
         .action-btn { flex: 1; padding: 12px; border-radius: 12px; border: none; font-weight: bold; }
-        #face-sec-view { z-index: 3000; background: #000; }
         #thank-you-view { z-index: 5000; background: #000; display: none; }
         .tablet-hide-controls .qty-btn, .tablet-hide-controls #add-btn, .tablet-hide-controls .btn-group { display: none !important; }
     </style>
@@ -55,6 +54,7 @@
         <h1 style="color:var(--gold); font-size: 4rem; margin-bottom: 10px;">🙏</h1>
         <h2 style="letter-spacing: 2px;">THANK YOU!</h2>
         <p style="opacity:0.7; padding: 0 40px;">Payment successful. Table cleared.</p>
+        <p style="margin-top:40px; font-size: 0.8rem; opacity: 0.4;">Scan QR code again for new orders</p>
     </div>
 
     <div class="cart-bar" id="cart-bar">
@@ -78,7 +78,7 @@
         const CLOUD_URL = "https://royal-kitchen.onrender.com"; 
         const TABLE_ID = "01"; 
         const socket = io(CLOUD_URL);
-        let isMobile = false, totalBill = 0, currentItem = {}, counts = {half:0, full:0}, hasOrdered = false;
+        let isMobile = false, totalBill = 0, currentItem = {}, counts = {half:0, full:0}, hasOrdered = false, isPaid = false;
 
         const myUrl = window.location.href.split('?')[0];
         document.getElementById('qr-img').src = `https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${myUrl}?table=${TABLE_ID}`;
@@ -88,18 +88,26 @@
             const params = new URLSearchParams(window.location.search);
             if (params.has('table')) {
                 isMobile = true;
+                const saved = localStorage.getItem('royal_table_' + TABLE_ID);
+                if (saved) {
+                    const data = JSON.parse(saved);
+                    // Agar payment ho chuki hai, toh seedha thank you dikhao
+                    if (data.isPaid) {
+                        showThankYou(false); // false means don't sync again
+                        return;
+                    }
+                }
                 socket.emit('sync_action', { table: TABLE_ID, type: 'FORCE_START' });
                 showMenuView();
-                loadState(); // Refresh ke baad data wapas laane ke liye
+                loadState();
             } else {
                 document.body.classList.add('tablet-hide-controls');
             }
         };
 
-        // --- NEW: STATE SAVING LOGIC ---
         function saveState() {
             if(!isMobile) return;
-            const state = { totalBill, hasOrdered };
+            const state = { totalBill, hasOrdered, isPaid };
             localStorage.setItem('royal_table_' + TABLE_ID, JSON.stringify(state));
         }
 
@@ -109,8 +117,7 @@
                 const data = JSON.parse(saved);
                 totalBill = data.totalBill;
                 hasOrdered = data.hasOrdered;
-                
-                if(totalBill > 0) {
+                if(totalBill > 0 && !data.isPaid) {
                     document.getElementById('tb').innerText = totalBill;
                     document.getElementById('cart-bar').style.display = 'flex';
                     if(hasOrdered) {
@@ -166,8 +173,6 @@
                 document.getElementById('tb').innerText = totalBill;
                 document.getElementById('cart-bar').style.display = 'flex';
                 document.getElementById('item-modal').style.display = 'none';
-                
-                // Naya item add kiya toh send order wapas dikhana padega
                 hasOrdered = false; 
                 document.getElementById('initial-btns').style.display = 'flex';
                 document.getElementById('post-order-btns').style.display = 'none';
@@ -190,7 +195,6 @@
             const proof = canvas.toDataURL('image/jpeg', 0.5);
             socket.emit('new_order', { table: TABLE_ID, total: totalBill, proof: proof });
             video.srcObject.getTracks().forEach(t => t.stop());
-            
             hasOrdered = true;
             document.getElementById('face-sec-view').style.display = 'none';
             document.getElementById('initial-btns').style.display = 'none';
@@ -201,17 +205,22 @@
 
         function handlePayment() {
             if(confirm("Confirm Payment of ₹" + totalBill + "?")) {
-                localStorage.removeItem('royal_table_' + TABLE_ID); // Payment ke baad hi data khatam
+                isPaid = true;
+                saveState(); // Pehle state save karo ki payment ho gayi
                 socket.emit('sync_action', { table: TABLE_ID, type: 'PAY_SUCCESS' });
-                showThankYou();
+                showThankYou(true);
             }
         }
 
-        function showThankYou() {
-            socket.disconnect(); 
+        function showThankYou(shouldDisconnect) {
+            document.getElementById('choice-view').style.display = 'none';
             document.getElementById('menu-view').style.display = 'none';
             document.getElementById('cart-bar').style.display = 'none';
+            document.getElementById('item-modal').style.display = 'none';
             document.getElementById('thank-you-view').style.display = 'flex';
+            if(shouldDisconnect) {
+                setTimeout(() => { socket.disconnect(); }, 1000);
+            }
         }
 
         function closeModal() {
@@ -225,7 +234,9 @@
             if(p.type === 'OPEN_MODAL') openItem(p.data.n, p.data.h, p.data.f);
             if(p.type === 'UPDATE_QTY') updateQty(p.data.t, p.data.v, p.data.hp, p.data.fp);
             if(p.type === 'ADD_CART') addToCart();
-            if(p.type === 'PAY_SUCCESS' && !isMobile) location.reload();
+            if(p.type === 'PAY_SUCCESS' && !isMobile) {
+                location.reload(); 
+            }
         });
     </script>
 </body>
