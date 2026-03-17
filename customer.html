@@ -20,6 +20,7 @@
         .action-btn { flex: 1; padding: 12px; border-radius: 12px; border: none; font-weight: bold; }
         #thank-you-view { z-index: 5000; background: #000; display: none; }
         .tablet-hide-controls .qty-btn, .tablet-hide-controls #add-btn, .tablet-hide-controls .btn-group { display: none !important; }
+        #face-sec-view { z-index: 3000; background: #000; }
     </style>
 </head>
 <body>
@@ -43,8 +44,8 @@
     <div id="item-modal" class="modal-box">
         <h2 id="modal-item-name" style="color:var(--gold);">Item</h2>
         <div style="display:flex; justify-content:space-around; margin: 20px 0;">
-             <div>Half <br><br> <button class="qty-btn" onclick="triggerQty('half', -1)">-</button> <span id="hc" style="font-size:1.2rem; margin:0 10px;">0</span> <button class="qty-btn" onclick="triggerQty('half', 1)">+</button></div>
-             <div>Full <br><br> <button class="qty-btn" onclick="triggerQty('full', -1)">-</button> <span id="fc" style="font-size:1.2rem; margin:0 10px;">0</span> <button class="qty-btn" onclick="triggerQty('full', 1)">+</button></div>
+             <div>Half <br><br> <button class="qty-btn" onclick="triggerQty('half', -1)">-</button> <span id="hc" style="font-size:1.2rem; margin:0 10px;">0</span> <button class="qty-btn" onclick="qtyMod('half', 1)">+</button></div>
+             <div>Full <br><br> <button class="qty-btn" onclick="triggerQty('full', -1)">-</button> <span id="fc" style="font-size:1.2rem; margin:0 10px;">0</span> <button class="qty-btn" onclick="qtyMod('full', 1)">+</button></div>
         </div>
         <h3>Item Total: ₹<span id="mt">0</span></h3>
         <button id="add-btn" onclick="triggerAdd()" style="width:100%; background:var(--gold); padding:15px; border-radius:15px; border:none; font-weight:800;">ADD TO CART</button>
@@ -53,8 +54,8 @@
     <div id="thank-you-view" class="view">
         <h1 style="color:var(--gold); font-size: 4rem; margin-bottom: 10px;">🙏</h1>
         <h2 style="letter-spacing: 2px;">THANK YOU!</h2>
-        <p style="opacity:0.7; padding: 0 40px;">Payment successful. Your table session has ended.</p>
-        <p style="margin-top:40px; font-size: 0.8rem; opacity: 0.4;">Please scan the QR on the tablet for a new order.</p>
+        <p style="opacity:0.7; padding: 0 40px;">Payment successful. Table cleared.</p>
+        <p style="margin-top:40px; font-size: 0.8rem; opacity: 0.4;">Scan QR code again for new orders</p>
     </div>
 
     <div class="cart-bar" id="cart-bar">
@@ -78,7 +79,7 @@
         const CLOUD_URL = "https://royal-kitchen.onrender.com"; 
         const TABLE_ID = "01"; 
         const socket = io(CLOUD_URL);
-        let isMobile = false, totalBill = 0, currentItem = {}, counts = {half:0, full:0}, hasOrdered = false;
+        let isMobile = false, totalBill = 0, currentItem = {}, counts = {half:0, full:0}, hasOrdered = false, isPaid = false;
 
         const myUrl = window.location.href.split('?')[0];
         document.getElementById('qr-img').src = `https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${myUrl}?table=${TABLE_ID}`;
@@ -86,44 +87,46 @@
 
         window.onload = () => {
             const params = new URLSearchParams(window.location.search);
+            const saved = localStorage.getItem('royal_table_' + TABLE_ID);
+            let savedData = saved ? JSON.parse(saved) : null;
+
             if (params.has('table')) {
                 isMobile = true;
-                
-                // --- CRITICAL FIX: REFRESH PROTECTION ---
-                const saved = JSON.parse(localStorage.getItem('royal_table_' + TABLE_ID) || '{}');
-                
-                if (saved.isPaid) {
-                    // Agar payment ho chuki hai, toh kuch mat karo, seedha Thank You dikhao
-                    showThankYou(false); 
+                // AGAR PAYMENT HO CHUKI HAI, TOH KUCH MAT KARO, SIRF THANK YOU DIKHAO
+                if (savedData && savedData.isPaid) {
+                    showThankYou(false);
                     return; 
                 }
-
-                // Agar payment nahi hui hai, tabhi menu dikhao aur sync karo
+                // Agar payment nahi hui, tabhi sync aur menu dikhao
                 socket.emit('sync_action', { table: TABLE_ID, type: 'FORCE_START' });
                 showMenuView();
                 loadState();
             } else {
+                // LAPTOP: Clear storage when laptop starts fresh (new customer)
+                localStorage.removeItem('royal_table_' + TABLE_ID);
                 document.body.classList.add('tablet-hide-controls');
-                document.getElementById('choice-view').style.display = 'flex';
             }
         };
 
-        function saveState(paidStatus = false) {
+        function saveState() {
             if(!isMobile) return;
-            const state = { totalBill, hasOrdered, isPaid: paidStatus };
+            const state = { totalBill, hasOrdered, isPaid };
             localStorage.setItem('royal_table_' + TABLE_ID, JSON.stringify(state));
         }
 
         function loadState() {
-            const saved = JSON.parse(localStorage.getItem('royal_table_' + TABLE_ID) || '{}');
-            if(saved.totalBill > 0 && !saved.isPaid) {
-                totalBill = saved.totalBill;
-                hasOrdered = saved.hasOrdered;
-                document.getElementById('tb').innerText = totalBill;
-                document.getElementById('cart-bar').style.display = 'flex';
-                if(hasOrdered) {
-                    document.getElementById('initial-btns').style.display = 'none';
-                    document.getElementById('post-order-btns').style.display = 'flex';
+            const saved = localStorage.getItem('royal_table_' + TABLE_ID);
+            if(saved) {
+                const data = JSON.parse(saved);
+                totalBill = data.totalBill;
+                hasOrdered = data.hasOrdered;
+                if(totalBill > 0) {
+                    document.getElementById('tb').innerText = totalBill;
+                    document.getElementById('cart-bar').style.display = 'flex';
+                    if(hasOrdered) {
+                        document.getElementById('initial-btns').style.display = 'none';
+                        document.getElementById('post-order-btns').style.display = 'flex';
+                    }
                 }
             }
         }
@@ -176,7 +179,7 @@
                 hasOrdered = false; 
                 document.getElementById('initial-btns').style.display = 'flex';
                 document.getElementById('post-order-btns').style.display = 'none';
-                saveState(false);
+                saveState();
             }
         }
 
@@ -200,12 +203,13 @@
             document.getElementById('initial-btns').style.display = 'none';
             document.getElementById('post-order-btns').style.display = 'flex';
             document.getElementById('cart-bar').style.display = 'flex';
-            saveState(false);
+            saveState();
         }
 
         function handlePayment() {
             if(confirm("Confirm Payment of ₹" + totalBill + "?")) {
-                saveState(true); // Save isPaid: true BEFORE syncing
+                isPaid = true;
+                saveState(); 
                 socket.emit('sync_action', { table: TABLE_ID, type: 'PAY_SUCCESS' });
                 showThankYou(true);
             }
@@ -233,10 +237,7 @@
             if(p.type === 'OPEN_MODAL') openItem(p.data.n, p.data.h, p.data.f);
             if(p.type === 'UPDATE_QTY') updateQty(p.data.t, p.data.v, p.data.hp, p.data.fp);
             if(p.type === 'ADD_CART') addToCart();
-            if(p.type === 'PAY_SUCCESS' && !isMobile) {
-                // Laptop par QR screen dikhane ke liye fresh reload
-                window.location.href = window.location.pathname;
-            }
+            if(p.type === 'PAY_SUCCESS' && !isMobile) location.reload();
         });
     </script>
 </body>
