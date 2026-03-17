@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600;800&display=swap');
+        :root { --gold: #c5a059; --glass: rgba(0, 0, 0, 0.95); --border: rgba(255, 255, 255, 0.1); }
+        body { margin: 0; font-family: 'Poppins', sans-serif; color: #fff; background: #050505; overflow-x: hidden; }
+
+        /* Multi-Table Badge */
+        #table-tag { position: fixed; top: 15px; left: 15px; background: var(--gold); color: #000; padding: 5px 15px; border-radius: 20px; font-weight: 800; font-size: 0.7rem; z-index: 1000; }
+
+        /* Choice View */
+        #choice-view { position: fixed; inset: 0; background: #000; z-index: 10000; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; }
+        .choice-card { background: rgba(255,255,255,0.03); border: 1px solid var(--border); padding: 30px; border-radius: 35px; width: 80%; max-width: 400px; margin-bottom: 20px; }
+        .clickable { cursor: pointer; border: 1.5px solid var(--gold) !important; }
+
+        /* Splash */
+        #splash-screen { position: fixed; inset: 0; background: #000; z-index: 9999; display: none; flex-direction: column; align-items: center; justify-content: center; }
+
+        /* Menu */
+        .dish-card { background: var(--glass); border: 1px solid var(--border); margin: 15px 20px; padding: 18px; border-radius: 28px; display: flex; align-items: center; }
+        .dish-img { width: 75px; height: 75px; border-radius: 18px; margin-right: 15px; object-fit: cover; border: 1px solid var(--gold); }
+
+        /* Modal */
+        .modal-box { width: 85%; background: #111; padding: 30px 20px; border-radius: 40px; border: 1px solid var(--gold); text-align: center; position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); display: none; z-index: 2000; }
+        .portion-row { background: rgba(255,255,255,0.03); margin: 15px 0; padding: 15px; border-radius: 20px; display: flex; justify-content: space-between; align-items: center; }
+        .qty-btn { background: none; border: 1px solid var(--gold); color: var(--gold); width: 35px; height: 35px; border-radius: 50%; cursor: pointer; }
+        
+        .cart-bar { position: fixed; bottom: 20px; left: 15px; right: 15px; background: var(--gold); color: #000; padding: 20px; border-radius: 25px; display: none; justify-content: space-between; font-weight: 800; }
+    </style>
+</head>
+<body>
+
+    <div id="table-tag">TABLE 01</div>
+
+    <div id="choice-view">
+        <h2 style="color:var(--gold);">THE ROYAL KITCHEN</h2>
+        <div class="choice-card">
+            <img id="qr-img" src="" style="border: 5px solid #fff; border-radius: 12px; width: 150px;">
+            <p style="font-size: 0.8rem; margin-top:10px;">Scan to Order from Mobile</p>
+        </div>
+        <div class="choice-card clickable" onclick="startFlow('tablet')">
+            <h3>Use Tablet Mode</h3>
+        </div>
+    </div>
+
+    <div id="splash-screen">
+        <h1 style="color:var(--gold); font-size: 3rem;">THE ROYAL KITCHEN</h1>
+    </div>
+
+    <div id="menu-view" style="display:none; padding: 20px;">
+        <h2 style="font-weight: 800;">Our Menu</h2>
+        <div class="dish-card" onclick="openItem('Paneer Tikka', 180, 320)">
+            <img src="https://images.unsplash.com/photo-1567188040759-fb8a883dc6d8?w=200" class="dish-img">
+            <div><h3>Paneer Tikka</h3><small style="color:var(--gold)">H: 180 | F: 320</small></div>
+        </div>
+    </div>
+
+    <div id="item-modal" class="modal-box">
+        <h2 id="modal-item-name" style="color:var(--gold);">Item</h2>
+        <div class="portion-row">
+            <span>Half <small id="hp"></small></span>
+            <div><button class="qty-btn" onclick="updateQty('half', -1)">-</button> <span id="hc">0</span> <button class="qty-btn" onclick="updateQty('half', 1)">+</button></div>
+        </div>
+        <div class="portion-row">
+            <span>Full <small id="fp"></small></span>
+            <div><button class="qty-btn" onclick="updateQty('full', -1)">-</button> <span id="fc">0</span> <button class="qty-btn" onclick="updateQty('full', 1)">+</button></div>
+        </div>
+        <h3>Total: ₹<span id="mt">0</span></h3>
+        <button onclick="addToCart()" style="width:100%; background:var(--gold); padding:15px; border-radius:15px; border:none; font-weight:800;">ADD TO CART</button>
+        <p onclick="closeModal()" style="opacity:0.5; margin-top:10px;">Cancel</p>
+    </div>
+
+    <div class="cart-bar" id="cart-bar">
+        <span>Bill: ₹<span id="tb">0</span></span>
+        <button onclick="sendOrder()" style="background:#000; color:#fff; border:none; padding:5px 15px; border-radius:10px;">ORDER NOW</button>
+    </div>
+
+    <script>
+        // --- 1. SETTINGS (Tujhe bas yahan Render ka link dalna hai) ---
+        const CLOUD_URL = "https://your-app-name.onrender.com"; 
+        const TABLE_ID = "01"; 
+        const socket = io(CLOUD_URL);
+
+        // QR Setup
+        const myUrl = window.location.href.split('?')[0]; // Current page path
+        document.getElementById('qr-img').src = `https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${myUrl}?table=${TABLE_ID}&mode=mobile`;
+
+        // Check if Mobile Scanned
+        const urlParams = new URLSearchParams(window.location.search);
+        if(urlParams.get('mode') === 'mobile') {
+            socket.emit('mobile_scanned', urlParams.get('table'));
+            startFlow('mobile');
+        }
+
+        let currentItem = {}, counts = {half:0, full:0}, totalBill = 0;
+
+        function startFlow(mode) {
+            document.getElementById('choice-view').style.display = 'none';
+            document.getElementById('splash-screen').style.display = 'flex';
+            socket.emit('join_table', TABLE_ID);
+            setTimeout(() => {
+                document.getElementById('splash-screen').style.display = 'none';
+                document.getElementById('menu-view').style.display = 'block';
+            }, 3000);
+        }
+
+        function openItem(name, hp, fp) {
+            currentItem = {name, hp, fp}; counts = {half:0, full:0};
+            document.getElementById('modal-item-name').innerText = name;
+            document.getElementById('hp').innerText = `(₹${hp})`;
+            document.getElementById('fp').innerText = `(₹${fp})`;
+            updateDisplay();
+            document.getElementById('item-modal').style.display = 'block';
+        }
+
+        function updateQty(t, v) { counts[t] = Math.max(0, counts[t]+v); updateDisplay(); }
+
+        function updateDisplay() {
+            document.getElementById('hc').innerText = counts.half;
+            document.getElementById('fc').innerText = counts.full;
+            document.getElementById('mt').innerText = (counts.half*currentItem.hp) + (counts.full*currentItem.fp);
+        }
+
+        function addToCart() {
+            let val = parseInt(document.getElementById('mt').innerText);
+            if(val > 0) {
+                totalBill += val;
+                document.getElementById('tb').innerText = totalBill;
+                document.getElementById('cart-bar').style.display = 'flex';
+                closeModal();
+            }
+        }
+
+        function closeModal() { document.getElementById('item-modal').style.display = 'none'; }
+
+        function sendOrder() {
+            socket.emit('new_order', { table: TABLE_ID, total: totalBill });
+            alert("Order Sent to Manager!");
+        }
+
+        socket.on('mobile_connected', (data) => {
+            if(data.table === TABLE_ID) startFlow('mobile');
+        });
+    </script>
+</body>
+</html>
