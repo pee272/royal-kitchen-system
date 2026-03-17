@@ -18,9 +18,9 @@
         .qty-btn { background: none; border: 1px solid var(--gold); color: var(--gold); width: 35px; height: 35px; border-radius: 50%; cursor: pointer; }
         .cart-bar { position: fixed; bottom: 20px; left: 15px; right: 15px; background: var(--gold); color: #000; padding: 15px; border-radius: 25px; display: none; flex-direction: column; align-items: center; font-weight: 800; z-index: 1500; gap: 10px; }
         
-        #face-sec-view { z-index: 4000; background: #000; text-align: center; display: none; flex-direction: column; align-items: center; justify-content: center; }
-        #camera-feed { width: 250px; height: 250px; border-radius: 50%; object-fit: cover; border: 4px solid var(--gold); margin-bottom: 20px; transform: scaleX(-1); }
-        #success-view { z-index: 5000; background: #000; text-align: center; display: none; }
+        #face-sec-view { z-index: 5000; background: #000; text-align: center; display: none; flex-direction: column; align-items: center; justify-content: center; }
+        #camera-feed { width: 250px; height: 250px; border-radius: 50%; object-fit: cover; border: 4px solid var(--gold); margin-bottom: 20px; transform: scaleX(-1); background: #222; }
+        #success-view { z-index: 6000; background: #000; text-align: center; display: none; }
         
         .tablet-hide-controls .qty-btn, .tablet-hide-controls #add-btn, .tablet-hide-controls .btn-row button { display: none !important; }
         .btn-row { display: flex; width: 100%; gap: 10px; justify-content: center; }
@@ -32,13 +32,18 @@
     <div id="success-view" class="view">
         <h1 style="color:var(--gold); font-size: 4rem;">✓</h1>
         <h2>Payment Successful!</h2>
+        <p>Thank you for visiting!</p>
     </div>
 
+    <div id="table-tag" style="position:fixed; top:15px; left:15px; z-index:4000; background:var(--gold); color:#000; padding:5px 15px; border-radius:20px; font-weight:800; font-size:0.7rem;">TABLE 01</div>
+
     <div id="face-sec-view" class="view">
-        <h2 style="color:var(--gold);">Face Verification</h2>
-        <video id="camera-feed" autoplay playsinline></video>
+        <h2 style="color:var(--gold); margin-top: 0;">Face Verification</h2>
+        <p style="font-size: 0.8rem; opacity: 0.8;">Verification ke liye front face dikhayein</p>
+        <video id="camera-feed" autoplay playsinline muted></video>
         <canvas id="photo-canvas" style="display:none;"></canvas>
-        <button onclick="captureAndSend()" style="background:var(--gold); color:#000; padding:15px 40px; border-radius:50px; border:none; font-weight:800;">CONFIRM ORDER</button>
+        <button onclick="captureAndSend()" style="background:var(--gold); color:#000; padding:15px 40px; border-radius:50px; border:none; font-weight:800; cursor:pointer;">CONFIRM & SEND</button>
+        <p onclick="closeSecurity()" style="margin-top:20px; opacity:0.5; cursor:pointer;">Back to Menu</p>
     </div>
 
     <div id="choice-view" class="view">
@@ -68,9 +73,9 @@
     <div class="cart-bar" id="cart-bar">
         <span>Total Bill: ₹<span id="tb">0</span></span>
         <div class="btn-row">
-            <button id="main-send-btn" onclick="startSecurity()" style="background:#000; color:#fff; border:none; padding:12px; border-radius:12px; width:100%;">SEND ORDER</button>
-            <button id="add-more-btn" onclick="setOrderState(false)" style="display:none; background:#fff; color:#000; border:none; padding:10px; border-radius:12px; flex:1;">+ ADD MORE</button>
-            <button id="pay-btn" onclick="handlePayment()" style="display:none; background:#000; color:#fff; border:none; padding:10px; border-radius:12px; flex:1;">PAY NOW</button>
+            <button id="main-send-btn" onclick="startSecurity()" style="background:#000; color:#fff; border:none; padding:12px; border-radius:12px; width:100%; font-weight:800;">SEND ORDER</button>
+            <button id="add-more-btn" onclick="closeModal()" style="display:none; background:#fff; color:#000; border:none; padding:10px; border-radius:12px; flex:1; font-weight:800;">+ ADD MORE</button>
+            <button id="pay-btn" onclick="handlePayment()" style="display:none; background:#000; color:#fff; border:none; padding:10px; border-radius:12px; flex:1; font-weight:800;">PAY NOW</button>
         </div>
     </div>
 
@@ -78,24 +83,23 @@
         const CLOUD_URL = "https://royal-kitchen.onrender.com"; 
         const TABLE_ID = "01"; 
         const socket = io(CLOUD_URL);
-        let isMobile = false, totalBill = 0, currentItem = {}, counts = {half:0, full:0};
+        let isMobile = false, totalBill = 0, currentItem = {}, counts = {half:0, full:0}, stream = null;
 
         socket.emit('join_table', TABLE_ID);
-        document.getElementById('qr-img').src = `https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${window.location.href.split('?')[0]}?table=${TABLE_ID}`;
+        const myUrl = window.location.href.split('?')[0];
+        document.getElementById('qr-img').src = `https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${myUrl}?table=${TABLE_ID}`;
 
         window.onload = () => {
             const params = new URLSearchParams(window.location.search);
-            const savedBill = localStorage.getItem('bill_' + TABLE_ID);
-            const orderSent = localStorage.getItem('sent_' + TABLE_ID);
-
+            const savedBill = localStorage.getItem('currentBill_' + TABLE_ID);
             if(savedBill) { 
                 totalBill = parseInt(savedBill); 
                 updateUIAfterCart();
-                if(orderSent === "true") setOrderState(true);
+                setOrderState(true);
             }
-
             if (params.has('table')) {
                 isMobile = true; 
+                socket.emit('mobile_scanned', TABLE_ID);
                 startFlow();
             } else {
                 document.getElementById('main-body').classList.add('tablet-hide-controls');
@@ -103,7 +107,6 @@
         };
 
         function setOrderState(placed) {
-            localStorage.setItem('sent_' + TABLE_ID, placed);
             document.getElementById('main-send-btn').style.display = placed ? 'none' : 'block';
             document.getElementById('add-more-btn').style.display = placed ? 'block' : 'none';
             document.getElementById('pay-btn').style.display = placed ? 'block' : 'none';
@@ -111,11 +114,26 @@
 
         async function startSecurity() {
             if(!isMobile) return;
-            document.getElementById('face-sec-view').style.display = 'flex';
+            const secView = document.getElementById('face-sec-view');
+            secView.style.display = 'flex';
+            
             try {
-                const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "user" } });
-                document.getElementById('camera-feed').srcObject = stream;
-            } catch (e) { alert("Camera Permission Required!"); }
+                stream = await navigator.mediaDevices.getUserMedia({ 
+                    video: { facingMode: "user" },
+                    audio: false 
+                });
+                const video = document.getElementById('camera-feed');
+                video.srcObject = stream;
+            } catch (err) {
+                console.error("Camera Error: ", err);
+                alert("Camera access chahiye verification ke liye. Settings mein jaake Allow karein.");
+                secView.style.display = 'none';
+            }
+        }
+
+        function closeSecurity() {
+            if(stream) stream.getTracks().forEach(t => t.stop());
+            document.getElementById('face-sec-view').style.display = 'none';
         }
 
         function captureAndSend() {
@@ -123,52 +141,73 @@
             const canvas = document.getElementById('photo-canvas');
             canvas.width = video.videoWidth; canvas.height = video.videoHeight;
             canvas.getContext('2d').drawImage(video, 0, 0);
-            socket.emit('new_order', { table: TABLE_ID, total: totalBill, proof: canvas.toDataURL('image/jpeg', 0.5) });
-            video.srcObject.getTracks().forEach(t => t.stop());
+            const proof = canvas.toDataURL('image/jpeg', 0.5);
+            
+            socket.emit('new_order', { table: TABLE_ID, total: totalBill, proof: proof });
+            if(stream) stream.getTracks().forEach(t => t.stop());
             document.getElementById('face-sec-view').style.display = 'none';
             setOrderState(true);
+            alert("Order Sent with Face Proof!");
         }
 
         function handlePayment() {
-            if(!confirm("Pay ₹" + totalBill + "?")) return;
-            localStorage.clear();
-            socket.emit('sync_action', { table: TABLE_ID, type: 'paid' });
+            if(!confirm("Khatam? Payment confirm karein.")) return;
+            socket.emit('sync_action', { table: TABLE_ID, type: 'payment_success' });
+            showSuccess();
+        }
+
+        function showSuccess() {
+            localStorage.removeItem('currentBill_' + TABLE_ID);
             document.getElementById('menu-view').style.display = 'none';
             document.getElementById('cart-bar').style.display = 'none';
             document.getElementById('success-view').style.display = 'flex';
-            setTimeout(() => { location.href = window.location.href.split('?')[0]; }, 3000);
+            setTimeout(() => { location.href = window.location.href.split('?')[0]; }, 5000);
         }
 
         function startFlow() { document.getElementById('choice-view').style.display = 'none'; document.getElementById('menu-view').style.display = 'block'; }
-        function triggerItem(n, h, f) { if(!isMobile) return; socket.emit('sync_action', { table: TABLE_ID, type: 'open', data: {n, h, f} }); openItem(n, h, f); }
-        function openItem(n, hp, fp) {
-            currentItem = {n, hp, fp}; counts = {half:0, full:0};
-            document.getElementById('modal-item-name').innerText = n;
+        
+        function triggerItem(n, h, f) { 
+            if(!isMobile) return; 
+            socket.emit('sync_action', { table: TABLE_ID, type: 'open_item', data: {n, h, f} }); 
+            openItem(n, h, f); 
+        }
+
+        function openItem(name, hp, fp) {
+            currentItem = {name, hp, fp}; counts = {half:0, full:0};
+            document.getElementById('modal-item-name').innerText = name;
             document.getElementById('hc').innerText = 0; document.getElementById('fc').innerText = 0;
             document.getElementById('main-body').classList.add('modal-active');
             document.getElementById('item-modal').style.display = 'block';
         }
-        function triggerQty(t, v) { if(!isMobile) return; socket.emit('sync_action', { table: TABLE_ID, type: 'qty', data: {t, v} }); updateQty(t, v); }
+
+        function triggerQty(t, v) { if(!isMobile) return; socket.emit('sync_action', { table: TABLE_ID, type: 'update_qty', data: {t, v} }); updateQty(t, v); }
         function updateQty(t, v) { counts[t] = Math.max(0, counts[t]+v); document.getElementById(t==='half'?'hc':'fc').innerText = counts[t]; }
-        function triggerAdd() { if(!isMobile) return; socket.emit('sync_action', { table: TABLE_ID, type: 'add' }); addToCart(); }
+        
+        function triggerAdd() { if(!isMobile) return; socket.emit('sync_action', { table: TABLE_ID, type: 'add_to_cart' }); addToCart(); }
         function addToCart() {
             totalBill += (counts.half*currentItem.hp) + (counts.full*currentItem.fp);
-            localStorage.setItem('bill_' + TABLE_ID, totalBill);
+            localStorage.setItem('currentBill_' + TABLE_ID, totalBill);
             updateUIAfterCart();
             closeModal();
         }
-        function triggerClose() { if(!isMobile) return; socket.emit('sync_action', { table: TABLE_ID, type: 'close' }); closeModal(); }
-        function closeModal() { document.getElementById('main-body').classList.remove('modal-active'); document.getElementById('item-modal').style.display = 'none'; }
+
+        function triggerClose() { if(!isMobile) return; socket.emit('sync_action', { table: TABLE_ID, type: 'close_modal' }); closeModal(); }
+        function closeModal() { 
+            document.getElementById('main-body').classList.remove('modal-active');
+            document.getElementById('item-modal').style.display = 'none'; 
+        }
+
         function updateUIAfterCart() { document.getElementById('tb').innerText = totalBill; document.getElementById('cart-bar').style.display = 'flex'; }
 
         socket.on('sync_action', (p) => {
             if(p.table !== TABLE_ID) return;
-            if(p.type === 'open') openItem(p.data.n, p.data.h, p.data.f);
-            if(p.type === 'qty') updateQty(p.data.t, p.data.v);
-            if(p.type === 'add') addToCart();
-            if(p.type === 'close') closeModal();
-            if(p.type === 'paid') location.reload();
+            if(p.type === 'open_item') openItem(p.data.n, p.data.h, p.data.f);
+            if(p.type === 'update_qty') updateQty(p.data.t, p.data.v);
+            if(p.type === 'add_to_cart') addToCart();
+            if(p.type === 'close_modal') closeModal();
+            if(p.type === 'payment_success') showSuccess();
         });
+        socket.on('mobile_connected', (data) => { if(data.table === TABLE_ID) startFlow(); });
     </script>
 </body>
 </html>
