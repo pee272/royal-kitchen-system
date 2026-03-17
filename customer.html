@@ -18,11 +18,16 @@
         .qty-btn { background: none; border: 1px solid var(--gold); color: var(--gold); width: 35px; height: 35px; border-radius: 50%; cursor: pointer; }
         .cart-bar { position: fixed; bottom: 20px; left: 15px; right: 15px; background: var(--gold); color: #000; padding: 20px; border-radius: 25px; display: none; justify-content: space-between; font-weight: 800; z-index: 1500; }
         
-        /* Disable clicks for Tablet */
-        .readonly-mode { pointer-events: none !important; opacity: 0.9; }
+        /* Tablet/Laptop Mode: Control Hiding */
+        .tablet-hide-controls .qty-btn, 
+        .tablet-hide-controls #add-btn, 
+        .tablet-hide-controls #cancel-btn,
+        .tablet-hide-controls #order-btn {
+            display: none !important;
+        }
     </style>
 </head>
-<body>
+<body id="main-body">
 
     <div id="table-tag" style="position:fixed; top:15px; left:15px; z-index:3000; background:var(--gold); color:#000; padding:5px 15px; border-radius:20px; font-weight:800; font-size:0.7rem;">TABLE 01</div>
 
@@ -65,7 +70,7 @@
         const CLOUD_URL = "https://royal-kitchen.onrender.com"; 
         const TABLE_ID = "01"; 
         const socket = io(CLOUD_URL);
-        let isMobile = false; // To check if device is the Master
+        let isMobile = false; 
 
         socket.emit('join_table', TABLE_ID);
         const myUrl = window.location.href.split('?')[0];
@@ -74,15 +79,13 @@
         window.onload = () => {
             const params = new URLSearchParams(window.location.search);
             if (params.has('table')) {
-                isMobile = true; // Mobile has control
+                isMobile = true; 
                 socket.emit('mobile_scanned', TABLE_ID);
                 startFlow();
             } else {
-                // Laptop/Tablet mode: Disable all clicks on Menu and Modals
-                document.getElementById('menu-view').classList.add('readonly-mode');
-                document.getElementById('item-modal').classList.add('readonly-mode');
-                document.getElementById('cart-bar').classList.add('readonly-mode');
-                console.log("Tablet Mode: Controls Disabled");
+                // Tablet Mode: Body pe class laga do buttons chhupane ke liye
+                document.getElementById('main-body').classList.add('tablet-hide-controls');
+                console.log("Tablet Mode Activated: Controls Hidden");
             }
         };
 
@@ -94,7 +97,7 @@
         let totalBill = 0, currentItem = {}, counts = {half:0, full:0};
 
         function triggerItem(name, hp, fp) {
-            if(!isMobile) return; // Only mobile can trigger
+            if(!isMobile) return; 
             socket.emit('sync_action', { table: TABLE_ID, type: 'open_item', data: {name, hp, fp} });
             openItem(name, hp, fp);
         }
@@ -114,7 +117,6 @@
             closeModal();
         }
 
-        // Standard logic for everyone (Mirroring)
         function openItem(name, hp, fp) {
             currentItem = {name, hp, fp}; counts = {half:0, full:0};
             document.getElementById('modal-item-name').innerText = name;
