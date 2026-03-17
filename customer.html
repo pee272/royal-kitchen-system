@@ -14,11 +14,13 @@
         .dish-card { background: var(--glass); border: 1px solid var(--border); margin-bottom: 15px; padding: 18px; border-radius: 28px; display: flex; align-items: center; cursor: pointer; }
         .dish-img { width: 70px; height: 70px; border-radius: 15px; margin-right: 15px; object-fit: cover; border: 1px solid var(--gold); }
         .modal-box { width: 85%; max-width: 400px; background: #111; padding: 30px 20px; border-radius: 40px; border: 1px solid var(--gold); text-align: center; position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); display: none; z-index: 2000; }
-        .qty-btn { background: none; border: 1px solid var(--gold); color: var(--gold); width: 40px; height: 40px; border-radius: 50%; cursor: pointer; font-size: 1.2rem; font-weight: bold; }
+        .qty-btn { background: none; border: 1px solid var(--gold); color: var(--gold); width: 40px; height: 40px; border-radius: 50%; cursor: pointer; font-weight: bold; }
         .cart-bar { position: fixed; bottom: 20px; left: 15px; right: 15px; background: var(--gold); color: #000; padding: 15px; border-radius: 25px; display: none; flex-direction: column; align-items: center; font-weight: 800; z-index: 1500; }
+        .btn-group { display: flex; gap: 10px; width: 100%; margin-top: 10px; }
+        .action-btn { flex: 1; padding: 12px; border-radius: 12px; border: none; font-weight: bold; cursor: pointer; }
         #face-sec-view { z-index: 3000; background: #000; text-align: center; display: none; flex-direction: column; align-items: center; justify-content: center; }
         #camera-feed { width: 250px; height: 250px; border-radius: 50%; object-fit: cover; border: 4px solid var(--gold); margin-bottom: 20px; transform: scaleX(-1); }
-        .tablet-hide-controls .qty-btn, .tablet-hide-controls #add-btn { display: none !important; }
+        .tablet-hide-controls .qty-btn, .tablet-hide-controls #add-btn, .tablet-hide-controls .btn-group { display: none !important; }
     </style>
 </head>
 <body id="main-body">
@@ -39,38 +41,38 @@
     </div>
 
     <div id="item-modal" class="modal-box">
-        <h2 id="modal-item-name" style="color:var(--gold); margin-bottom: 5px;">Item</h2>
-        <p id="modal-prices" style="font-size: 0.8rem; opacity: 0.6; margin-bottom: 20px;">H: 0 | F: 0</p>
-        
-        <div style="display:flex; justify-content:space-around; margin: 15px 0;">
+        <h2 id="modal-item-name" style="color:var(--gold);">Item</h2>
+        <div style="display:flex; justify-content:space-around; margin: 20px 0;">
              <div>Half <br><br> <button class="qty-btn" onclick="triggerQty('half', -1)">-</button> <span id="hc" style="font-size:1.2rem; margin:0 10px;">0</span> <button class="qty-btn" onclick="triggerQty('half', 1)">+</button></div>
              <div>Full <br><br> <button class="qty-btn" onclick="triggerQty('full', -1)">-</button> <span id="fc" style="font-size:1.2rem; margin:0 10px;">0</span> <button class="qty-btn" onclick="triggerQty('full', 1)">+</button></div>
         </div>
-
-        <div style="background: rgba(197, 160, 89, 0.1); padding: 15px; border-radius: 20px; margin: 20px 0;">
-            <span style="opacity: 0.8;">Item Total:</span>
-            <h2 style="margin: 0; color: var(--gold);">₹<span id="mt">0</span></h2>
-        </div>
-
-        <button id="add-btn" onclick="triggerAdd()" style="width:100%; background:var(--gold); padding:15px; border-radius:15px; border:none; font-weight:800; font-size: 1rem;">ADD TO CART</button>
+        <h3 style="margin-bottom:20px;">Item Total: ₹<span id="mt">0</span></h3>
+        <button id="add-btn" onclick="triggerAdd()" style="width:100%; background:var(--gold); padding:15px; border-radius:15px; border:none; font-weight:800;">ADD TO CART</button>
     </div>
 
     <div class="cart-bar" id="cart-bar">
         <span>Cart Total: ₹<span id="tb">0</span></span>
-        <button onclick="startSecurity()" style="background:#000; color:#fff; border:none; padding:12px; border-radius:12px; width:90%; font-weight:bold; margin-top:10px;">SEND ORDER</button>
+        <div id="initial-btns" class="btn-group">
+            <button class="action-btn" onclick="startSecurity()" style="background:#000; color:#fff; width:100%;">SEND ORDER</button>
+        </div>
+        <div id="post-order-btns" class="btn-group" style="display:none;">
+            <button class="action-btn" onclick="closeModal()" style="background:#fff; color:#000;">+ ADD MORE</button>
+            <button class="action-btn" onclick="handlePayment()" style="background:#000; color:#fff;">PAY NOW</button>
+        </div>
     </div>
 
     <div id="face-sec-view" class="view">
         <h2 style="color:var(--gold);">Verification</h2>
         <video id="camera-feed" autoplay playsinline></video>
-        <button onclick="captureAndSend()" style="background:var(--gold); color:#000; padding:15px 40px; border-radius:50px; border:none; font-weight:800; margin-top: 20px;">CONFIRM & ORDER</button>
+        <canvas id="photo-canvas" style="display:none;"></canvas>
+        <button onclick="captureAndSend()" style="background:var(--gold); color:#000; padding:15px 40px; border-radius:50px; border:none; font-weight:800; margin-top:20px;">CONFIRM & ORDER</button>
     </div>
 
     <script>
         const CLOUD_URL = "https://royal-kitchen.onrender.com"; 
         const TABLE_ID = "01"; 
         const socket = io(CLOUD_URL);
-        let isMobile = false, totalBill = 0, currentItem = {hp:0, fp:0}, counts = {half:0, full:0};
+        let isMobile = false, totalBill = 0, currentItem = {}, counts = {half:0, full:0};
 
         const myUrl = window.location.href.split('?')[0];
         document.getElementById('qr-img').src = `https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${myUrl}?table=${TABLE_ID}`;
@@ -102,11 +104,11 @@
         function openItem(name, hp, fp) {
             currentItem = {name, hp, fp}; counts = {half:0, full:0};
             document.getElementById('modal-item-name').innerText = name;
-            document.getElementById('modal-prices').innerText = `Half: ₹${hp} | Full: ₹${fp}`;
-            document.getElementById('hc').innerText = 0; 
-            document.getElementById('fc').innerText = 0;
-            document.getElementById('mt').innerText = 0; 
+            document.getElementById('hc').innerText = 0; document.getElementById('fc').innerText = 0;
+            document.getElementById('mt').innerText = 0;
             document.getElementById('item-modal').style.display = 'block';
+            // Jab modal khule, agar post-order mode mein hain toh buttons hide ho jayenge cart-bar ke
+            document.getElementById('cart-bar').style.display = 'none';
         }
 
         function triggerQty(t, v) {
@@ -118,10 +120,7 @@
         function updateQty(t, v, hp, fp) {
             counts[t] = Math.max(0, counts[t]+v);
             document.getElementById(t==='half'?'hc':'fc').innerText = counts[t];
-            
-            // POPUP PRICE CALCULATION
-            let itemTotal = (counts.half * hp) + (counts.full * fp);
-            document.getElementById('mt').innerText = itemTotal;
+            document.getElementById('mt').innerText = (counts.half * hp) + (counts.full * fp);
         }
 
         function triggerAdd() {
@@ -137,6 +136,9 @@
                 document.getElementById('tb').innerText = totalBill;
                 document.getElementById('cart-bar').style.display = 'flex';
                 document.getElementById('item-modal').style.display = 'none';
+                // Wapas "Send Order" button dikhao agar naya item add kiya hai
+                document.getElementById('initial-btns').style.display = 'flex';
+                document.getElementById('post-order-btns').style.display = 'none';
             }
         }
 
@@ -148,8 +150,33 @@
         }
 
         function captureAndSend() {
-            alert("Order Sent! Total: ₹" + totalBill);
-            location.reload();
+            const video = document.getElementById('camera-feed');
+            const canvas = document.getElementById('photo-canvas');
+            canvas.width = video.videoWidth; canvas.height = video.videoHeight;
+            canvas.getContext('2d').drawImage(video, 0, 0);
+            const proof = canvas.toDataURL('image/jpeg', 0.5);
+            
+            socket.emit('new_order', { table: TABLE_ID, total: totalBill, proof: proof });
+            video.srcObject.getTracks().forEach(t => t.stop());
+            
+            // YAHAN MAGIC HAI: Reload nahi hoga, buttons switch honge
+            document.getElementById('face-sec-view').style.display = 'none';
+            document.getElementById('initial-btns').style.display = 'none';
+            document.getElementById('post-order-btns').style.display = 'flex';
+            document.getElementById('cart-bar').style.display = 'flex';
+            alert("Order Sent! You can add more or pay now.");
+        }
+
+        function handlePayment() {
+            if(confirm("Confirm Payment of ₹" + totalBill + "?")) {
+                alert("Payment Successful! Thank you.");
+                location.reload(); // Payment ke baad hi reset hoga
+            }
+        }
+
+        function closeModal() {
+            document.getElementById('item-modal').style.display = 'none';
+            document.getElementById('cart-bar').style.display = 'flex';
         }
 
         socket.on('sync_action', (p) => {
