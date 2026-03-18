@@ -198,12 +198,8 @@
 
         function openItem(name, hp, fp) {
             currentItem = {name, hp, fp};
-            // FIX: Agar cart mein pehle se ye item hai, toh wahi quantity dikhao
-            if(cart[name]) {
-                counts = {half: cart[name].half, full: cart[name].full};
-            } else {
-                counts = {half: 0, full: 0}; 
-            }
+            // FIX: Cart clear ho chuka hoga Add More dabate hi, toh ye hamesha 0 rahega naye order ke liye
+            counts = (cart[name]) ? {half: cart[name].half, full: cart[name].full} : {half: 0, full: 0};
             
             let prevH = 0, prevF = 0;
             orderHistory.forEach(order => { if(order.items[name]) { prevH += order.items[name].half; prevF += order.items[name].full; } });
@@ -235,11 +231,8 @@
         }
 
         function addToCart() {
-            if(counts.half === 0 && counts.full === 0) {
-                delete cart[currentItem.name]; // Agar dono 0 hain toh cart se hata do
-            } else {
-                cart[currentItem.name] = {...counts};
-            }
+            if(counts.half === 0 && counts.full === 0) delete cart[currentItem.name];
+            else cart[currentItem.name] = {...counts};
             
             currentBill = Object.keys(cart).reduce((acc, name) => {
                 let hP = (name === 'Paneer Tikka')?180:(name === 'Chicken Masala'?220:(name === 'Butter Naan'?40:120));
@@ -256,8 +249,12 @@
         }
 
         function unlockMenu() {
-            hasOrdered = false; cart = {}; currentBill = 0; counts = {half: 0, full: 0};
-            document.getElementById('tb').innerText = grandTotal;
+            // FIX: Add More dabaney pe cart khali par grandTotal wahi rahega
+            hasOrdered = false; 
+            cart = {}; 
+            currentBill = 0; 
+            counts = {half: 0, full: 0};
+            document.getElementById('tb').innerText = grandTotal; 
             document.querySelectorAll('.dish-card').forEach(c => c.classList.remove('locked', 'active-focus', 'hidden-focus'));
             document.getElementById('initial-btns').style.display = 'flex';
             document.getElementById('post-order-btns').style.display = 'none';
@@ -283,7 +280,9 @@
             grandTotal = orderHistory.reduce((a, b) => a + b.total, 0);
             socket.emit('new_order', { table: TABLE_ID, order: newOrder, grandTotal });
             video.srcObject.getTracks().forEach(t => t.stop());
-            hasOrdered = true; currentBill = 0; cart = {}; // Order hone ke baad cart khali
+            hasOrdered = true; 
+            currentBill = 0; 
+            cart = {}; // Cart khali taaki "Add More" fresh start kare
             document.querySelectorAll('.dish-card').forEach(card => card.classList.add('locked'));
             document.getElementById('face-sec-view').style.display = 'none';
             document.getElementById('initial-btns').style.display = 'none';
