@@ -27,6 +27,7 @@
         }
         .dish-card:active { transform: scale(0.95); }
         .dish-card.locked { opacity: 0.5; cursor: not-allowed; pointer-events: none; }
+        .dish-card.hidden { display: none !important; } /* Focus mode support */
         
         .dish-img { 
             width: 100%; 
@@ -70,8 +71,8 @@
     </div>
 
     <div id="menu-view">
-        <h2 style="font-weight: 800; margin-bottom: 20px; text-align: center;">Explore Menu</h2>
-        <div class="menu-grid">
+        <h2 id="menu-title" style="font-weight: 800; margin-bottom: 20px; text-align: center;">Explore Menu</h2>
+        <div class="menu-grid" id="main-grid">
             <div class="dish-card" onclick="triggerItem('Paneer Tikka', 180, 320)">
                 <img src="https://images.unsplash.com/photo-1567188040759-fb8a883dc6d8?w=300" class="dish-img">
                 <div class="dish-info">
@@ -105,6 +106,7 @@
 
     <div id="item-modal" class="modal-box">
         <h2 id="modal-item-name" style="color:var(--gold);">Item</h2>
+        <p id="modal-prices" style="font-size: 0.8rem; margin-bottom: 10px; opacity: 0.7;"></p>
         <div style="display:flex; justify-content:space-around; margin: 20px 0;">
              <div>Half <br><br> <button class="qty-btn" onclick="triggerQty('half', -1)">-</button> <span id="hc" style="font-size:1.2rem; margin:0 10px;">0</span> <button class="qty-btn" onclick="triggerQty('half', 1)">+</button></div>
              <div>Full <br><br> <button class="qty-btn" onclick="triggerQty('full', -1)">-</button> <span id="fc" style="font-size:1.2rem; margin:0 10px;">0</span> <button class="qty-btn" onclick="triggerQty('full', 1)">+</button></div>
@@ -112,6 +114,7 @@
         <h3>Selection: ₹<span id="mt">0</span></h3>
         <p style="font-size: 0.7rem; color: var(--gold); opacity: 0.8;" id="prev-order-hint"></p>
         <button id="add-btn" onclick="triggerAdd()" style="width:100%; background:var(--gold); padding:15px; border-radius:15px; border:none; font-weight:800;">CONFIRM SELECTION</button>
+        <button onclick="cancelSelection()" style="background:none; border:none; color:#ff4444; margin-top:15px; font-weight:bold; cursor:pointer;">CANCEL</button>
     </div>
 
     <div id="receipt-view" class="view">
@@ -156,6 +159,14 @@
 
         const myUrl = window.location.href.split('?')[0];
         document.getElementById('qr-img').src = `https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${myUrl}?table=${TABLE_ID}`;
+
+        // --- NEW: SCROLL SYNC LOGIC ---
+        window.addEventListener('scroll', () => {
+            if(isMobile) {
+                const scrollPercent = window.scrollY / (document.documentElement.scrollHeight - window.innerHeight);
+                socket.emit('sync_action', { table: TABLE_ID, type: 'SCROLL', data: { percent: scrollPercent } });
+            }
+        });
 
         socket.on('connect', () => {
             socket.emit('join_table', TABLE_ID);
@@ -213,7 +224,8 @@
         function unlockMenu() {
             cart = {}; currentBill = 0;
             document.getElementById('tb').innerText = grandTotal;
-            document.querySelectorAll('.dish-card').forEach(card => card.classList.remove('locked'));
+            document.querySelectorAll('.dish-card').forEach(card => card.classList.remove('locked', 'hidden'));
+            document.getElementById('menu-title').innerText = "Explore Menu";
             document.getElementById('item-modal').style.display = 'none';
             document.getElementById('cart-bar').style.display = 'flex';
             document.getElementById('initial-btns').style.display = 'flex';
@@ -223,7 +235,12 @@
         }
 
         function triggerItem(n, h, f) {
-            if(!isMobile || document.querySelector('.dish-card').classList.contains('locked')) return;
+            if(!isMobile || hasOrdered) return;
+            // Focus Mode Logic
+            const cards = document.querySelectorAll('.dish-card');
+            cards.forEach(card => { if(!card.innerHTML.includes(n)) card.classList.add('hidden'); });
+            document.getElementById('menu-title').innerText = "Confirm Selection";
+
             socket.emit('sync_action', { table: TABLE_ID, type: 'OPEN_MODAL', data: {n, h, f} });
             openItem(n, h, f);
         }
@@ -243,12 +260,21 @@
             if(prevHalf > 0 || prevFull > 0) prevQtyText = `Previously Ordered: H: ${prevHalf}, F: ${prevFull}`;
 
             document.getElementById('modal-item-name').innerText = name;
+            document.getElementById('modal-prices').innerText = `H: ₹${hp} | F: ₹${fp}`;
             document.getElementById('hc').innerText = counts.half;
             document.getElementById('fc').innerText = counts.full;
             document.getElementById('prev-order-hint').innerText = prevQtyText;
             updateModalBill();
             document.getElementById('item-modal').style.display = 'block';
             document.getElementById('cart-bar').style.display = 'none';
+        }
+
+        function cancelSelection() {
+            document.querySelectorAll('.dish-card').forEach(card => card.classList.remove('hidden'));
+            document.getElementById('menu-title').innerText = "Explore Menu";
+            document.getElementById('item-modal').style.display = 'none';
+            if(grandTotal > 0 || currentBill > 0) document.getElementById('cart-bar').style.display = 'flex';
+            if(isMobile) socket.emit('sync_action', { table: TABLE_ID, type: 'CANCEL_SELECT' });
         }
 
         function triggerQty(t, v) {
@@ -275,9 +301,6 @@
         function addToCart() {
             cart[currentItem.name] = {...counts};
             let newSelectionTotal = Object.keys(cart).reduce((acc, name) => {
-                // Find original price logic or use prices passed
-                let card = [...document.querySelectorAll('.dish-card')].find(c => c.innerHTML.includes(name));
-                // Simplified price lookup for this demo (same logic as before)
                 let hPrice = (name === 'Paneer Tikka') ? 180 : (name === 'Chicken Masala' ? 220 : (name === 'Butter Naan' ? 40 : 120));
                 let fPrice = (name === 'Paneer Tikka') ? 320 : (name === 'Chicken Masala' ? 400 : (name === 'Butter Naan' ? 70 : 200));
                 return acc + (cart[name].half * hPrice) + (cart[name].full * fPrice);
@@ -287,6 +310,9 @@
             document.getElementById('tb').innerText = grandTotal + currentBill;
             document.getElementById('cart-bar').style.display = 'flex';
             document.getElementById('item-modal').style.display = 'none';
+            // Restore menu cards
+            document.querySelectorAll('.dish-card').forEach(card => card.classList.remove('hidden'));
+            document.getElementById('menu-title').innerText = "Explore Menu";
             saveState();
         }
 
@@ -372,15 +398,32 @@
 
         socket.on('sync_action', (p) => {
             if(p.table !== TABLE_ID) return;
+
+            // HANDLE SCROLL SYNC
+            if(p.type === 'SCROLL' && !isMobile) {
+                const targetScroll = p.data.percent * (document.documentElement.scrollHeight - window.innerHeight);
+                window.scrollTo({ top: targetScroll, behavior: 'smooth' });
+            }
+
             if(p.type === 'FORCE_START') showMenuView();
-            if(p.type === 'OPEN_MODAL') openItem(p.data.n, p.data.h, p.data.f);
+            if(p.type === 'OPEN_MODAL') {
+                // Focus mode sync for laptop
+                document.querySelectorAll('.dish-card').forEach(card => { if(!card.innerHTML.includes(p.data.n)) card.classList.add('hidden'); });
+                openItem(p.data.n, p.data.h, p.data.f);
+            }
             if(p.type === 'UPDATE_QTY') updateQty(p.data.t, p.data.v, p.data.hp, p.data.fp);
             if(p.type === 'ADD_CART') addToCart();
+            if(p.type === 'CANCEL_SELECT') {
+                document.querySelectorAll('.dish-card').forEach(card => card.classList.remove('hidden'));
+                document.getElementById('item-modal').style.display = 'none';
+            }
             if(p.type === 'RESET_SELECTION') { 
                 cart = {}; currentBill = 0; 
                 grandTotal = p.data.grand || 0;
                 document.getElementById('tb').innerText = grandTotal; 
                 document.getElementById('item-modal').style.display = 'none';
+                document.querySelectorAll('.dish-card').forEach(card => card.classList.remove('locked', 'hidden'));
+                document.getElementById('menu-title').innerText = "Explore Menu";
             }
             if(p.type === 'OPEN_RECEIPT') { orderHistory = p.data.history; grandTotal = p.data.grand; showReceipt(); }
             if(p.type === 'CLOSE_RECEIPT') document.getElementById('receipt-view').style.display = 'none';
