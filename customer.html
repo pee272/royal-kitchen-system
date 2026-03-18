@@ -55,7 +55,7 @@
              <div>Half <br><br> <button class="qty-btn" onclick="triggerQty('half', -1)">-</button> <span id="hc" style="font-size:1.2rem; margin:0 10px;">0</span> <button class="qty-btn" onclick="triggerQty('half', 1)">+</button></div>
              <div>Full <br><br> <button class="qty-btn" onclick="triggerQty('full', -1)">-</button> <span id="fc" style="font-size:1.2rem; margin:0 10px;">0</span> <button class="qty-btn" onclick="triggerQty('full', 1)">+</button></div>
         </div>
-        <h3>Total Bill: ₹<span id="mt">0</span></h3>
+        <h3>Selection: ₹<span id="mt">0</span></h3>
         <p style="font-size: 0.7rem; color: var(--gold); opacity: 0.8;" id="prev-order-hint"></p>
         <button id="add-btn" onclick="triggerAdd()" style="width:100%; background:var(--gold); padding:15px; border-radius:15px; border:none; font-weight:800;">CONFIRM SELECTION</button>
     </div>
@@ -164,8 +164,6 @@
             document.getElementById('cart-bar').style.display = 'flex';
             document.getElementById('initial-btns').style.display = 'flex';
             document.getElementById('post-order-btns').style.display = 'none';
-            
-            // Sync current grandTotal to Tablet during reset
             if(isMobile) socket.emit('sync_action', { table: TABLE_ID, type: 'RESET_SELECTION', data: { grand: grandTotal } });
             saveState();
         }
@@ -211,8 +209,9 @@
         }
 
         function updateModalBill() {
+            // Fix: Modal mein sirf current selection ki keemat dikhegi
             let itemTotal = (counts.half * currentItem.hp) + (counts.full * currentItem.fp);
-            document.getElementById('mt').innerText = grandTotal + itemTotal;
+            document.getElementById('mt').innerText = itemTotal; 
         }
 
         function triggerAdd() {
@@ -317,7 +316,7 @@
             if(p.type === 'ADD_CART') addToCart();
             if(p.type === 'RESET_SELECTION') { 
                 cart = {}; currentBill = 0; 
-                grandTotal = p.data.grand; // Laptop ab purana amount yaad rakhega
+                grandTotal = p.data.grand || 0;
                 document.getElementById('tb').innerText = grandTotal; 
                 document.getElementById('item-modal').style.display = 'none';
             }
