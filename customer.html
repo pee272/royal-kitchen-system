@@ -157,7 +157,6 @@
         }
 
         function unlockMenu() {
-            // Mobile reset
             cart = {}; currentBill = 0;
             document.getElementById('tb').innerText = grandTotal;
             document.querySelectorAll('.dish-card').forEach(card => card.classList.remove('locked'));
@@ -166,8 +165,8 @@
             document.getElementById('initial-btns').style.display = 'flex';
             document.getElementById('post-order-btns').style.display = 'none';
             
-            // Tablet reset command
-            if(isMobile) socket.emit('sync_action', { table: TABLE_ID, type: 'RESET_SELECTION' });
+            // Sync current grandTotal to Tablet during reset
+            if(isMobile) socket.emit('sync_action', { table: TABLE_ID, type: 'RESET_SELECTION', data: { grand: grandTotal } });
             saveState();
         }
 
@@ -223,7 +222,6 @@
 
         function addToCart() {
             cart[currentItem.name] = {...counts};
-            // Dynamic check for prices
             let newSelectionTotal = Object.keys(cart).reduce((acc, name) => {
                 let hPrice = (name === 'Paneer Tikka') ? 180 : 220;
                 let fPrice = (name === 'Paneer Tikka') ? 320 : 400;
@@ -319,6 +317,7 @@
             if(p.type === 'ADD_CART') addToCart();
             if(p.type === 'RESET_SELECTION') { 
                 cart = {}; currentBill = 0; 
+                grandTotal = p.data.grand; // Laptop ab purana amount yaad rakhega
                 document.getElementById('tb').innerText = grandTotal; 
                 document.getElementById('item-modal').style.display = 'none';
             }
