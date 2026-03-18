@@ -51,17 +51,16 @@
              <div>Full <br><br> <button class="qty-btn" onclick="triggerQty('full', -1)">-</button> <span id="fc" style="font-size:1.2rem; margin:0 10px;">0</span> <button class="qty-btn" onclick="triggerQty('full', 1)">+</button></div>
         </div>
         <h3>Item Total: ₹<span id="mt">0</span></h3>
-        <button id="add-btn" onclick="triggerAdd()" style="width:100%; background:var(--gold); padding:15px; border-radius:15px; border:none; font-weight:800;">UPDATE CART</button>
+        <button id="add-btn" onclick="triggerAdd()" style="width:100%; background:var(--gold); padding:15px; border-radius:15px; border:none; font-weight:800;">ADD TO CART</button>
     </div>
 
     <div id="receipt-view" class="view">
         <div class="receipt-card">
             <h3 style="text-align:center; border-bottom: 2px dashed #ccc; padding-bottom: 10px;">ORDER RECEIPT</h3>
-            <p><strong>Table:</strong> <span id="rec-table">01</span></p>
-            <p><strong>Time:</strong> <span id="rec-time"></span></p>
+            <p><strong>Table:</strong> 01 | <strong>Time:</strong> <span id="rec-time"></span></p>
             <center><img id="rec-photo" style="width:100px; height:100px; border-radius:10px; border:2px solid #000; margin:10px 0;"></center>
-            <div id="rec-items" style="border-top: 1px solid #eee; padding-top:10px;"></div>
-            <h3 style="border-top: 2px dashed #ccc; padding-top: 10px; text-align: right;">Total: ₹<span id="rec-total">0</span></h3>
+            <div id="rec-items" style="border-top: 1px solid #eee; padding-top:10px; max-height: 200px; overflow-y: auto;"></div>
+            <h3 style="border-top: 2px dashed #ccc; padding-top: 10px; text-align: right;">Total Bill: ₹<span id="rec-total">0</span></h3>
             <button onclick="document.getElementById('receipt-view').style.display='none'" style="width:100%; margin-top:15px; background:#000; color:#fff; border:none; padding:10px; border-radius:10px;">CLOSE</button>
         </div>
     </div>
@@ -69,7 +68,7 @@
     <div id="thank-you-view" class="view">
         <h1 style="color:var(--gold); font-size: 4rem; margin-bottom: 10px;">🙏</h1>
         <h2>THANK YOU!</h2>
-        <p>Order finished & Paid.</p>
+        <p>Payment successful. Table cleared.</p>
     </div>
 
     <div class="cart-bar" id="cart-bar">
@@ -95,7 +94,7 @@
         const TABLE_ID = "01"; 
         const socket = io(CLOUD_URL);
         let isMobile = false, totalBill = 0, currentItem = {}, counts = {half:0, full:0}, hasOrdered = false, isPaid = false, isMenuLocked = false;
-        let cart = {}, lastPhoto = "", orderTime = "";
+        let cart = {}, sentItems = {}, lastPhoto = "", orderTime = "";
 
         const myUrl = window.location.href.split('?')[0];
         document.getElementById('qr-img').src = `https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${myUrl}?table=${TABLE_ID}`;
@@ -104,57 +103,23 @@
             socket.emit('join_table', TABLE_ID);
             const params = new URLSearchParams(window.location.search);
             const saved = localStorage.getItem('royal_table_' + TABLE_ID);
-            let savedData = saved ? JSON.parse(saved) : null;
-
             if (params.has('table')) {
                 isMobile = true;
-                if (savedData && savedData.isPaid && window.performance.navigation.type !== 1) {
+                if (saved && JSON.parse(saved).isPaid && window.performance.navigation.type !== 1) {
                     localStorage.removeItem('royal_table_' + TABLE_ID);
-                    savedData = null;
                 }
-                if (savedData && savedData.isPaid) {
-                    showThankYou(false);
-                } else {
-                    socket.emit('sync_action', { table: TABLE_ID, type: 'FORCE_START' });
-                    showMenuView();
-                    loadState();
-                }
-            } else {
-                document.body.classList.add('tablet-hide-controls');
-            }
+                showMenuView(); loadState();
+            } else { document.body.classList.add('tablet-hide-controls'); }
         });
-
-        function showReceipt() {
-            // Receipt data bharna
-            document.getElementById('rec-photo').src = lastPhoto;
-            document.getElementById('rec-time').innerText = orderTime;
-            document.getElementById('rec-total').innerText = totalBill;
-            
-            let itemsHtml = "";
-            for(let name in cart) {
-                if(cart[name].half > 0 || cart[name].full > 0) {
-                    itemsHtml += `<p style="font-size:0.9rem;">${name}: <b>H:${cart[name].half} | F:${cart[name].full}</b></p>`;
-                }
-            }
-            document.getElementById('rec-items').innerHTML = itemsHtml;
-            document.getElementById('receipt-view').style.display = 'flex';
-            
-            // Dost ko tablet pe dikhane ke liye signal bhejna
-            if(isMobile) {
-                socket.emit('sync_action', { table: TABLE_ID, type: 'OPEN_RECEIPT', data: { photo: lastPhoto, time: orderTime, total: totalBill, items: cart } });
-            }
-        }
-
-        function lockMenu() {
-            isMenuLocked = true;
-            document.querySelectorAll('.dish-card').forEach(card => card.classList.add('locked'));
-        }
 
         function unlockMenu() {
             isMenuLocked = false;
-            document.querySelectorAll('.dish-card').forEach(card => card.classList.remove('locked'));
+            cart = {}; // NAYA: Cart reset for NEW order
+            document.querySelectorAll('.dish-card').forEach(c => c.classList.remove('locked'));
             document.getElementById('item-modal').style.display = 'none';
-            document.getElementById('cart-bar').style.display = 'flex';
+            document.getElementById('initial-btns').style.display = 'flex';
+            document.getElementById('post-order-btns').style.display = 'none';
+            saveState();
         }
 
         function triggerItem(n, h, f) {
@@ -165,11 +130,11 @@
 
         function openItem(name, hp, fp) {
             currentItem = {name, hp, fp};
-            counts = cart[name] ? {...cart[name]} : {half:0, full:0};
+            // NAYA: Ab hamesha 0 dikhayega naye order ke liye
+            counts = {half:0, full:0};
             document.getElementById('modal-item-name').innerText = name;
-            document.getElementById('hc').innerText = counts.half;
-            document.getElementById('fc').innerText = counts.full;
-            document.getElementById('mt').innerText = (counts.half * hp) + (counts.full * fp);
+            document.getElementById('hc').innerText = 0; document.getElementById('fc').innerText = 0;
+            document.getElementById('mt').innerText = 0;
             document.getElementById('item-modal').style.display = 'block';
             document.getElementById('cart-bar').style.display = 'none';
         }
@@ -194,13 +159,11 @@
 
         function addToCart() {
             cart[currentItem.name] = {...counts};
-            let tempTotal = 0;
-            // Simplified total logic for the demo (needs proper rate tracking in prod)
-            tempTotal = Object.values(cart).reduce((acc, i) => acc + (i.half * currentItem.hp) + (i.full * currentItem.fp), 0);
-            totalBill = tempTotal;
+            let currentSelectionTotal = (counts.half * currentItem.hp) + (counts.full * currentItem.fp);
+            totalBill += currentSelectionTotal; // Existing bill mein add hoga
             document.getElementById('tb').innerText = totalBill;
-            document.getElementById('cart-bar').style.display = 'flex';
             document.getElementById('item-modal').style.display = 'none';
+            document.getElementById('cart-bar').style.display = 'flex';
             saveState();
         }
 
@@ -219,60 +182,69 @@
             lastPhoto = canvas.toDataURL('image/jpeg', 0.5);
             orderTime = new Date().toLocaleTimeString();
             
-            socket.emit('new_order', { table: TABLE_ID, total: totalBill, proof: lastPhoto, items: cart, time: orderTime });
+            // NAYA: Current cart ko sentItems mein merge karna Receipt ke liye
+            for(let key in cart) {
+                if(!sentItems[key]) sentItems[key] = {half:0, full:0};
+                sentItems[key].half += cart[key].half;
+                sentItems[key].full += cart[key].full;
+            }
+
+            socket.emit('new_order', { table: TABLE_ID, total: totalBill, proof: lastPhoto, items: sentItems, time: orderTime });
             video.srcObject.getTracks().forEach(t => t.stop());
-            hasOrdered = true;
-            lockMenu();
+            isMenuLocked = true; hasOrdered = true;
+            document.querySelectorAll('.dish-card').forEach(c => c.classList.add('locked'));
             document.getElementById('face-sec-view').style.display = 'none';
             document.getElementById('initial-btns').style.display = 'none';
             document.getElementById('post-order-btns').style.display = 'flex';
-            document.getElementById('cart-bar').style.display = 'flex';
             saveState();
         }
 
-        function handlePayment() {
-            if(confirm("Confirm Payment of ₹" + totalBill + "?")) {
-                isPaid = true;
-                saveState(); 
-                socket.emit('sync_action', { table: TABLE_ID, type: 'PAY_SUCCESS' });
-                showThankYou(true);
+        function showReceipt() {
+            document.getElementById('rec-photo').src = lastPhoto;
+            document.getElementById('rec-time').innerText = orderTime;
+            document.getElementById('rec-total').innerText = totalBill;
+            let h = "";
+            for(let n in sentItems) {
+                if(sentItems[n].half > 0 || sentItems[n].full > 0) 
+                    h += `<p style="font-size:0.85rem; margin:5px 0;">${n}: <b>H:${sentItems[n].half} | F:${sentItems[n].full}</b></p>`;
             }
+            document.getElementById('rec-items').innerHTML = h;
+            document.getElementById('receipt-view').style.display = 'flex';
+            socket.emit('sync_action', { table: TABLE_ID, type: 'OPEN_RECEIPT', data: { photo: lastPhoto, time: orderTime, total: totalBill, items: sentItems } });
         }
 
         function saveState() {
             if(!isMobile) return;
-            localStorage.setItem('royal_table_' + TABLE_ID, JSON.stringify({ totalBill, hasOrdered, isPaid, isMenuLocked, cart, lastPhoto, orderTime }));
+            localStorage.setItem('royal_table_' + TABLE_ID, JSON.stringify({ totalBill, hasOrdered, isPaid, isMenuLocked, cart, sentItems, lastPhoto, orderTime }));
         }
 
         function loadState() {
-            const saved = localStorage.getItem('royal_table_' + TABLE_ID);
-            if(saved) {
-                const data = JSON.parse(saved);
-                totalBill = data.totalBill || 0;
-                hasOrdered = data.hasOrdered || false;
-                isPaid = data.isPaid || false;
-                isMenuLocked = data.isMenuLocked || false;
-                cart = data.cart || {};
-                lastPhoto = data.lastPhoto || "";
-                orderTime = data.orderTime || "";
-                
-                if(isMenuLocked) lockMenu();
-                if(totalBill > 0 && !isPaid) {
-                    document.getElementById('tb').innerText = totalBill;
-                    document.getElementById('cart-bar').style.display = 'flex';
-                    if(hasOrdered) {
-                        document.getElementById('initial-btns').style.display = 'none';
-                        document.getElementById('post-order-btns').style.display = 'flex';
-                    }
+            const s = localStorage.getItem('royal_table_' + TABLE_ID);
+            if(s) {
+                const d = JSON.parse(s);
+                totalBill = d.totalBill || 0; hasOrdered = d.hasOrdered || false;
+                isPaid = d.isPaid || false; isMenuLocked = d.isMenuLocked || false;
+                cart = d.cart || {}; sentItems = d.sentItems || {};
+                lastPhoto = d.lastPhoto || ""; orderTime = d.orderTime || "";
+                if(isMenuLocked) document.querySelectorAll('.dish-card').forEach(c => c.classList.add('locked'));
+                document.getElementById('tb').innerText = totalBill;
+                if(totalBill > 0) document.getElementById('cart-bar').style.display = 'flex';
+                if(hasOrdered && isMenuLocked) {
+                    document.getElementById('initial-btns').style.display = 'none';
+                    document.getElementById('post-order-btns').style.display = 'flex';
                 }
             }
         }
 
-        function showThankYou(shouldDisconnect) {
-            document.getElementById('menu-view').style.display = 'none';
-            document.getElementById('cart-bar').style.display = 'none';
-            document.getElementById('thank-you-view').style.display = 'flex';
-            if(shouldDisconnect) setTimeout(() => { socket.disconnect(); }, 1500);
+        function handlePayment() {
+            if(confirm("Confirm Payment of ₹" + totalBill + "?")) {
+                isPaid = true; saveState();
+                socket.emit('sync_action', { table: TABLE_ID, type: 'PAY_SUCCESS' });
+                document.getElementById('menu-view').style.display = 'none';
+                document.getElementById('cart-bar').style.display = 'none';
+                document.getElementById('thank-you-view').style.display = 'flex';
+                setTimeout(() => socket.disconnect(), 1500);
+            }
         }
 
         function showMenuView() {
@@ -288,7 +260,7 @@
             if(p.type === 'ADD_CART') addToCart();
             if(p.type === 'OPEN_RECEIPT') {
                 lastPhoto = p.data.photo; orderTime = p.data.time;
-                totalBill = p.data.total; cart = p.data.items;
+                totalBill = p.data.total; sentItems = p.data.items;
                 showReceipt();
             }
             if(p.type === 'PAY_SUCCESS' && !isMobile) location.reload();
