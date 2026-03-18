@@ -157,13 +157,17 @@
         }
 
         function unlockMenu() {
+            // Mobile reset
             cart = {}; currentBill = 0;
-            document.getElementById('tb').innerText = grandTotal; // Add More karte hi purana grand total bar pe dikhega
+            document.getElementById('tb').innerText = grandTotal;
             document.querySelectorAll('.dish-card').forEach(card => card.classList.remove('locked'));
             document.getElementById('item-modal').style.display = 'none';
             document.getElementById('cart-bar').style.display = 'flex';
             document.getElementById('initial-btns').style.display = 'flex';
             document.getElementById('post-order-btns').style.display = 'none';
+            
+            // Tablet reset command
+            if(isMobile) socket.emit('sync_action', { table: TABLE_ID, type: 'RESET_SELECTION' });
             saveState();
         }
 
@@ -177,7 +181,6 @@
             currentItem = {name, hp, fp};
             counts = cart[name] ? {...cart[name]} : {half:0, full:0};
             
-            // Fix: Find previous quantity from history to show user
             let prevQtyText = "";
             let prevHalf = 0, prevFull = 0;
             orderHistory.forEach(order => {
@@ -186,9 +189,7 @@
                     prevFull += order.items[name].full;
                 }
             });
-            if(prevHalf > 0 || prevFull > 0) {
-                prevQtyText = `Previously Ordered: Half: ${prevHalf}, Full: ${prevFull}`;
-            }
+            if(prevHalf > 0 || prevFull > 0) prevQtyText = `Previously Ordered: H: ${prevHalf}, F: ${prevFull}`;
 
             document.getElementById('modal-item-name').innerText = name;
             document.getElementById('hc').innerText = counts.half;
@@ -212,7 +213,7 @@
 
         function updateModalBill() {
             let itemTotal = (counts.half * currentItem.hp) + (counts.full * currentItem.fp);
-            document.getElementById('mt').innerText = grandTotal + itemTotal; // Realtime show GrandTotal + New Selection
+            document.getElementById('mt').innerText = grandTotal + itemTotal;
         }
 
         function triggerAdd() {
@@ -222,9 +223,8 @@
 
         function addToCart() {
             cart[currentItem.name] = {...counts};
-            // Dynamic bill calculation
+            // Dynamic check for prices
             let newSelectionTotal = Object.keys(cart).reduce((acc, name) => {
-                // Simplification for the logic
                 let hPrice = (name === 'Paneer Tikka') ? 180 : 220;
                 let fPrice = (name === 'Paneer Tikka') ? 320 : 400;
                 return acc + (cart[name].half * hPrice) + (cart[name].full * fPrice);
@@ -238,7 +238,7 @@
         }
 
         async function startSecurity() {
-            if(currentBill <= 0) return alert("Kuch naya select karein!");
+            if(currentBill <= 0) return alert("Select new items!");
             document.getElementById('face-sec-view').style.display = 'flex';
             const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "user" } });
             document.getElementById('camera-feed').srcObject = stream;
@@ -254,7 +254,7 @@
             
             const newOrder = { total: currentBill, photo, items: {...cart}, time };
             orderHistory.push(newOrder);
-            grandTotal += currentBill; // Bill add ho gaya
+            grandTotal += currentBill;
             
             socket.emit('new_order', { table: TABLE_ID, order: newOrder, grandTotal });
             video.srcObject.getTracks().forEach(t => t.stop());
@@ -317,6 +317,11 @@
             if(p.type === 'OPEN_MODAL') openItem(p.data.n, p.data.h, p.data.f);
             if(p.type === 'UPDATE_QTY') updateQty(p.data.t, p.data.v, p.data.hp, p.data.fp);
             if(p.type === 'ADD_CART') addToCart();
+            if(p.type === 'RESET_SELECTION') { 
+                cart = {}; currentBill = 0; 
+                document.getElementById('tb').innerText = grandTotal; 
+                document.getElementById('item-modal').style.display = 'none';
+            }
             if(p.type === 'OPEN_RECEIPT') { orderHistory = p.data.history; grandTotal = p.data.grand; showReceipt(); }
             if(p.type === 'CLOSE_RECEIPT') document.getElementById('receipt-view').style.display = 'none';
             if(p.type === 'PAY_SUCCESS' && !isMobile) location.reload();
