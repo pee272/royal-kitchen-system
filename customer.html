@@ -43,10 +43,6 @@
             <img src="https://images.unsplash.com/photo-1567188040759-fb8a883dc6d8?w=200" class="dish-img">
             <div><h3>Paneer Tikka</h3><small style="color:var(--gold)">H: 180 | F: 320</small></div>
         </div>
-        <div class="dish-card" onclick="triggerItem('Chicken Masala', 220, 400)">
-            <img src="https://images.unsplash.com/photo-1603894527177-9426f04d9c8c?w=200" class="dish-img">
-            <div><h3>Chicken Masala</h3><small style="color:var(--gold)">H: 220 | F: 400</small></div>
-        </div>
     </div>
 
     <div id="item-modal" class="modal-box">
@@ -64,7 +60,7 @@
             <h3 style="text-align:center; border-bottom: 2px dashed #000; padding-bottom: 10px;">BILL HISTORY</h3>
             <div id="rec-history-content"></div>
             <h3 style="border-top: 2px dashed #000; padding-top: 10px; text-align: right;">Grand Total: ₹<span id="rec-grand-total">0</span></h3>
-            <button onclick="document.getElementById('receipt-view').style.display='none'" style="width:100%; margin-top:15px; background:#000; color:#fff; border:none; padding:12px; border-radius:10px; font-weight:bold;">BACK TO MENU</button>
+            <button onclick="triggerCloseReceipt()" style="width:100%; margin-top:15px; background:#000; color:#fff; border:none; padding:12px; border-radius:10px; font-weight:bold;">BACK TO MENU</button>
         </div>
     </div>
 
@@ -81,7 +77,7 @@
         </div>
         <div id="post-order-btns" class="btn-group" style="display:none;">
             <button class="action-btn" onclick="unlockMenu()" style="background:#fff; color:#000;">+ ADD MORE</button>
-            <button class="action-btn" onclick="showReceipt()" style="background:var(--gold); color:#000;">VIEW HISTORY</button>
+            <button class="action-btn" onclick="triggerShowReceipt()" style="background:var(--gold); color:#000;">VIEW HISTORY</button>
             <button class="action-btn" onclick="handlePayment()" style="background:#000; color:#fff;">PAY NOW</button>
         </div>
     </div>
@@ -105,11 +101,10 @@
         socket.on('connect', () => {
             socket.emit('join_table', TABLE_ID);
             const params = new URLSearchParams(window.location.search);
-            const saved = localStorage.getItem('royal_table_' + TABLE_ID);
-            let savedData = saved ? JSON.parse(saved) : null;
-
             if (params.has('table')) {
                 isMobile = true;
+                const saved = localStorage.getItem('royal_table_' + TABLE_ID);
+                let savedData = saved ? JSON.parse(saved) : null;
                 if (savedData && savedData.isPaid && window.performance.navigation.type !== 1) {
                     localStorage.removeItem('royal_table_' + TABLE_ID);
                     savedData = null;
@@ -125,6 +120,12 @@
                 document.body.classList.add('tablet-hide-controls');
             }
         });
+
+        function triggerShowReceipt() {
+            if(!isMobile) return;
+            socket.emit('sync_action', { table: TABLE_ID, type: 'OPEN_RECEIPT', data: { history: orderHistory, grand: grandTotal } });
+            showReceipt();
+        }
 
         function showReceipt() {
             let historyHtml = "";
@@ -143,19 +144,22 @@
             document.getElementById('rec-history-content').innerHTML = historyHtml;
             document.getElementById('rec-grand-total').innerText = grandTotal;
             document.getElementById('receipt-view').style.display = 'flex';
-            
-            if(isMobile) socket.emit('sync_action', { table: TABLE_ID, type: 'OPEN_RECEIPT', data: { history: orderHistory, grand: grandTotal } });
+        }
+
+        function triggerCloseReceipt() {
+            if(isMobile) socket.emit('sync_action', { table: TABLE_ID, type: 'CLOSE_RECEIPT' });
+            document.getElementById('receipt-view').style.display = 'none';
         }
 
         function unlockMenu() {
-            cart = {}; // Reset current selection memory for new order
-            currentBill = 0;
+            cart = {}; currentBill = 0;
             document.getElementById('tb').innerText = 0;
             document.querySelectorAll('.dish-card').forEach(card => card.classList.remove('locked'));
             document.getElementById('item-modal').style.display = 'none';
             document.getElementById('cart-bar').style.display = 'flex';
             document.getElementById('initial-btns').style.display = 'flex';
             document.getElementById('post-order-btns').style.display = 'none';
+            saveState();
         }
 
         function triggerItem(n, h, f) {
@@ -193,22 +197,15 @@
 
         function addToCart() {
             cart[currentItem.name] = {...counts};
-            calculateCurrentBill();
+            currentBill = Object.keys(cart).reduce((acc, name) => acc + (cart[name].half * 180) + (cart[name].full * 320), 0);
+            document.getElementById('tb').innerText = currentBill;
             document.getElementById('cart-bar').style.display = 'flex';
             document.getElementById('item-modal').style.display = 'none';
             saveState();
         }
 
-        function calculateCurrentBill() {
-            currentBill = Object.keys(cart).reduce((acc, name) => {
-                // Production mein rates dynamic honge, yahan logic simplistic hai
-                return acc + (cart[name].half * 180) + (cart[name].full * 320); 
-            }, 0);
-            document.getElementById('tb').innerText = currentBill;
-        }
-
         async function startSecurity() {
-            if(currentBill <= 0) return alert("Kuch select to karo!");
+            if(currentBill <= 0) return alert("Select items first!");
             document.getElementById('face-sec-view').style.display = 'flex';
             const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "user" } });
             document.getElementById('camera-feed').srcObject = stream;
@@ -221,15 +218,11 @@
             canvas.getContext('2d').drawImage(video, 0, 0);
             const photo = canvas.toDataURL('image/jpeg', 0.5);
             const time = new Date().toLocaleTimeString();
-            
-            // Move cart to history
             const newOrder = { total: currentBill, photo, items: {...cart}, time };
             orderHistory.push(newOrder);
             grandTotal += currentBill;
-            
             socket.emit('new_order', { table: TABLE_ID, order: newOrder, grandTotal });
             video.srcObject.getTracks().forEach(t => t.stop());
-            
             hasOrdered = true;
             document.querySelectorAll('.dish-card').forEach(card => card.classList.add('locked'));
             document.getElementById('face-sec-view').style.display = 'none';
@@ -240,7 +233,7 @@
         }
 
         function handlePayment() {
-            if(confirm("Grand Total Pay Karein: ₹" + grandTotal + "?")) {
+            if(confirm("Confirm Grand Total Payment: ₹" + grandTotal + "?")) {
                 socket.emit('sync_action', { table: TABLE_ID, type: 'PAY_SUCCESS' });
                 localStorage.setItem('royal_table_' + TABLE_ID, JSON.stringify({ isPaid: true }));
                 showThankYou(true);
@@ -256,14 +249,11 @@
             const saved = localStorage.getItem('royal_table_' + TABLE_ID);
             if(saved) {
                 const data = JSON.parse(saved);
-                currentBill = data.currentBill || 0;
-                grandTotal = data.grandTotal || 0;
-                orderHistory = data.orderHistory || [];
-                cart = data.cart || {};
+                currentBill = data.currentBill || 0; grandTotal = data.grandTotal || 0;
+                orderHistory = data.orderHistory || []; cart = data.cart || {};
                 hasOrdered = data.hasOrdered || false;
-                
+                if(hasOrdered) document.querySelectorAll('.dish-card').forEach(card => card.classList.add('locked'));
                 if(hasOrdered) {
-                    document.querySelectorAll('.dish-card').forEach(card => card.classList.add('locked'));
                     document.getElementById('initial-btns').style.display = 'none';
                     document.getElementById('post-order-btns').style.display = 'flex';
                 }
@@ -290,10 +280,8 @@
             if(p.type === 'OPEN_MODAL') openItem(p.data.n, p.data.h, p.data.f);
             if(p.type === 'UPDATE_QTY') updateQty(p.data.t, p.data.v, p.data.hp, p.data.fp);
             if(p.type === 'ADD_CART') addToCart();
-            if(p.type === 'OPEN_RECEIPT') {
-                orderHistory = p.data.history; grandTotal = p.data.grand;
-                showReceipt();
-            }
+            if(p.type === 'OPEN_RECEIPT') { orderHistory = p.data.history; grandTotal = p.data.grand; showReceipt(); }
+            if(p.type === 'CLOSE_RECEIPT') document.getElementById('receipt-view').style.display = 'none';
             if(p.type === 'PAY_SUCCESS' && !isMobile) location.reload();
         });
     </script>
