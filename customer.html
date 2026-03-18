@@ -160,7 +160,7 @@
         const myUrl = window.location.href.split('?')[0];
         document.getElementById('qr-img').src = `https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${myUrl}?table=${TABLE_ID}`;
 
-        // --- NEW: SCROLL SYNC LOGIC ---
+        // SCROLL SYNC
         window.addEventListener('scroll', () => {
             if(isMobile) {
                 const scrollPercent = window.scrollY / (document.documentElement.scrollHeight - window.innerHeight);
@@ -222,7 +222,9 @@
         }
 
         function unlockMenu() {
-            cart = {}; currentBill = 0;
+            cart = {}; 
+            currentBill = 0;
+            hasOrdered = false; // CRITICAL FIX: Taaki triggerItem chal sake
             document.getElementById('tb').innerText = grandTotal;
             document.querySelectorAll('.dish-card').forEach(card => card.classList.remove('locked', 'hidden'));
             document.getElementById('menu-title').innerText = "Explore Menu";
@@ -235,10 +237,12 @@
         }
 
         function triggerItem(n, h, f) {
-            if(!isMobile || hasOrdered) return;
-            // Focus Mode Logic
+            if(!isMobile || hasOrdered) return; 
+            
             const cards = document.querySelectorAll('.dish-card');
-            cards.forEach(card => { if(!card.innerHTML.includes(n)) card.classList.add('hidden'); });
+            cards.forEach(card => { 
+                if(!card.innerHTML.includes(n)) card.classList.add('hidden'); 
+            });
             document.getElementById('menu-title').innerText = "Confirm Selection";
 
             socket.emit('sync_action', { table: TABLE_ID, type: 'OPEN_MODAL', data: {n, h, f} });
@@ -310,7 +314,6 @@
             document.getElementById('tb').innerText = grandTotal + currentBill;
             document.getElementById('cart-bar').style.display = 'flex';
             document.getElementById('item-modal').style.display = 'none';
-            // Restore menu cards
             document.querySelectorAll('.dish-card').forEach(card => card.classList.remove('hidden'));
             document.getElementById('menu-title').innerText = "Explore Menu";
             saveState();
@@ -398,16 +401,12 @@
 
         socket.on('sync_action', (p) => {
             if(p.table !== TABLE_ID) return;
-
-            // HANDLE SCROLL SYNC
             if(p.type === 'SCROLL' && !isMobile) {
                 const targetScroll = p.data.percent * (document.documentElement.scrollHeight - window.innerHeight);
                 window.scrollTo({ top: targetScroll, behavior: 'smooth' });
             }
-
             if(p.type === 'FORCE_START') showMenuView();
             if(p.type === 'OPEN_MODAL') {
-                // Focus mode sync for laptop
                 document.querySelectorAll('.dish-card').forEach(card => { if(!card.innerHTML.includes(p.data.n)) card.classList.add('hidden'); });
                 openItem(p.data.n, p.data.h, p.data.f);
             }
@@ -418,7 +417,7 @@
                 document.getElementById('item-modal').style.display = 'none';
             }
             if(p.type === 'RESET_SELECTION') { 
-                cart = {}; currentBill = 0; 
+                cart = {}; currentBill = 0; hasOrdered = false;
                 grandTotal = p.data.grand || 0;
                 document.getElementById('tb').innerText = grandTotal; 
                 document.getElementById('item-modal').style.display = 'none';
