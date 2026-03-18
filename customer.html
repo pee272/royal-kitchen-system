@@ -3,166 +3,241 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>The Royal Kitchen - Menu</title>
+    <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
     <style>
-        :root {
-            --gold: #c5a059;
-            --bg: #000000;
-            --card-bg: rgba(255, 255, 255, 0.05);
-            --border: rgba(197, 160, 89, 0.3);
+        @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600;800&display=swap');
+        :root { 
+            --gold: #c5a059; 
+            --glass: rgba(255, 255, 255, 0.05); 
+            --border: rgba(197, 160, 89, 0.3); 
         }
-
-        body {
-            margin: 0;
-            padding: 0;
-            background-color: var(--bg);
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            color: white;
+        
+        body { 
+            margin: 0; 
+            font-family: 'Poppins', sans-serif; 
+            color: #fff; 
+            background: #000; 
             display: flex;
             flex-direction: column;
             align-items: center;
         }
 
-        /* Header Style */
-        .menu-header {
-            width: 100%;
+        /* 1. Choice View (QR aur Tablet Selection) */
+        #choice-view { 
+            position: fixed; 
+            inset: 0; 
+            background: #000; 
+            z-index: 10000; 
+            display: flex; 
+            flex-direction: column; 
+            align-items: center; 
+            justify-content: center; 
+        }
+
+        .choice-card { 
+            background: rgba(255,255,255,0.03); 
+            border: 1px solid var(--border); 
+            padding: 25px; 
+            border-radius: 30px; 
+            width: 80%; 
+            max-width: 320px; 
+            margin-bottom: 20px; 
             text-align: center;
-            padding: 30px 0;
-            background: var(--bg);
-            position: sticky;
-            top: 0;
-            z-index: 100;
+            transition: 0.3s;
         }
 
-        .menu-header h2 {
-            margin: 0;
-            color: var(--gold);
-            letter-spacing: 2px;
-            font-size: 1.5rem;
-            text-transform: uppercase;
-        }
+        .clickable { cursor: pointer; border: 1.5px solid var(--gold) !important; }
+        .clickable:active { transform: scale(0.95); background: rgba(197, 160, 89, 0.1); }
 
-        /* Main Portion - Ab ye utna hi chaoda hoga jitne items hain */
-        #menu-view {
-            margin: 10px auto;
-            padding: 20px;
-            background: rgba(255, 255, 255, 0.02);
-            border: 1px solid var(--border);
-            border-radius: 25px;
+        /* 2. Menu View (Portion Design Fix) */
+        #menu-view { 
+            display: none; 
+            padding: 20px; 
+            margin: 80px auto 20px auto; 
+            background: rgba(255, 255, 255, 0.02); 
+            border: 1px solid var(--border); 
+            border-radius: 30px; 
             
-            /* Logic: Fit content aur max-width ka combo */
+            /* Logic: Sirf items ki width tak hi chaoda hoga */
             width: fit-content; 
-            max-width: 90vw;
-            
-            display: block;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+            max-width: 95vw; 
         }
 
-        /* Grid Layout */
-        .menu-grid {
-            display: grid;
-            grid-template-columns: repeat(2, 160px); /* Fixed width for alignment */
-            gap: 15px;
+        .menu-grid { 
+            display: grid; 
+            grid-template-columns: repeat(2, 160px); 
+            gap: 15px; 
             justify-content: center;
         }
 
-        /* Item Card Design */
-        .dish-card {
-            background: var(--card-bg);
-            border: 1px solid var(--border);
-            border-radius: 20px;
-            padding: 10px;
+        /* 3. Item Cards */
+        .dish-card { 
+            background: var(--glass); 
+            border: 1px solid var(--border); 
+            padding: 12px; 
+            border-radius: 22px; 
             text-align: center;
-            transition: transform 0.2s, border-color 0.2s;
-            cursor: pointer;
+            transition: 0.2s;
         }
 
-        .dish-card:hover {
-            border-color: var(--gold);
-            transform: translateY(-3px);
-        }
-
-        .dish-img {
-            width: 100%;
-            aspect-ratio: 1/1;
-            border-radius: 15px;
-            object-fit: cover;
+        .dish-img { 
+            width: 100%; 
+            aspect-ratio: 1/1; 
+            border-radius: 18px; 
+            object-fit: cover; 
             margin-bottom: 10px;
         }
 
-        .dish-info h3 {
-            margin: 5px 0;
-            font-size: 0.95rem;
-            color: #fff;
+        .dish-card h3 { font-size: 0.9rem; margin: 5px 0; color: #fff; }
+        .dish-card small { color: var(--gold); font-weight: 800; }
+
+        /* Splash Screen */
+        #splash-screen { 
+            position: fixed; 
+            inset: 0; 
+            background: #000; 
+            z-index: 9999; 
+            display: none; 
+            flex-direction: column; 
+            align-items: center; 
+            justify-content: center; 
         }
 
-        .dish-info small {
-            color: var(--gold);
-            font-size: 0.75rem;
-            font-weight: bold;
-        }
-
-        /* Footer Style */
-        .total-bill-bar {
-            position: fixed;
-            bottom: 0;
-            width: 100%;
-            background: var(--gold);
-            color: black;
+        /* Modal & Cart */
+        .modal-box { 
+            width: 80%; 
+            max-width: 350px;
+            background: #111; 
+            padding: 25px; 
+            border-radius: 35px; 
+            border: 1px solid var(--gold); 
+            position: fixed; 
+            top: 50%; left: 50%; 
+            transform: translate(-50%, -50%); 
+            display: none; 
+            z-index: 2000; 
             text-align: center;
-            padding: 15px 0;
-            font-weight: bold;
-            font-size: 1.1rem;
         }
+
+        .cart-bar { 
+            position: fixed; 
+            bottom: 20px; 
+            width: 90%; 
+            background: var(--gold); 
+            color: #000; 
+            padding: 18px; 
+            border-radius: 20px; 
+            display: none; 
+            justify-content: space-between; 
+            font-weight: 800; 
+            z-index: 1000;
+        }
+
+        #table-tag { position: fixed; top: 20px; left: 20px; background: var(--gold); color: #000; padding: 5px 15px; border-radius: 20px; font-weight: 800; font-size: 0.7rem; z-index: 1100; }
     </style>
 </head>
 <body>
 
-    <div class="menu-header">
-        <h2>EXPLORE MENU</h2>
+    <div id="table-tag">TABLE 01</div>
+
+    <div id="choice-view">
+        <h2 style="color:var(--gold); margin-bottom: 30px;">THE ROYAL KITCHEN</h2>
+        
+        <div class="choice-card">
+            <img id="qr-img" src="" style="border: 4px solid #fff; border-radius: 12px; width: 140px;">
+            <p style="font-size: 0.8rem; margin-top:15px; opacity: 0.8;">Scan to Order from Mobile</p>
+        </div>
+
+        <div class="choice-card clickable" onclick="startFlow('tablet')">
+            <h3 style="margin:0; color: var(--gold);">Use Tablet Mode</h3>
+            <p style="font-size: 0.7rem; margin: 5px 0 0 0; opacity: 0.6;">Continue on this screen</p>
+        </div>
+    </div>
+
+    <div id="splash-screen">
+        <h1 style="color:var(--gold); font-size: 2.5rem; letter-spacing: 2px;">THE ROYAL KITCHEN</h1>
     </div>
 
     <div id="menu-view">
+        <h2 style="text-align:center; color: var(--gold); margin-bottom: 20px;">Explore Menu</h2>
         <div class="menu-grid">
             
-            <div class="dish-card">
-                <img src="https://images.unsplash.com/photo-1567188040759-fb8a883dc6d8?w=300" class="dish-img" alt="Paneer Tikka">
-                <div class="dish-info">
-                    <h3>Paneer Tikka</h3>
-                    <small>Starts @ ₹180</small>
-                </div>
+            <div class="dish-card" onclick="openItem('Paneer Tikka', 180, 320)">
+                <img src="https://images.unsplash.com/photo-1567188040759-fb8a883dc6d8?w=300" class="dish-img">
+                <h3>Paneer Tikka</h3>
+                <small>Starts @ ₹180</small>
             </div>
 
-            <div class="dish-card">
-                <img src="https://images.unsplash.com/photo-1603894527177-9426f04d9c8c?w=300" class="dish-img" alt="Chicken Masala">
-                <div class="dish-info">
-                    <h3>Chicken Masala</h3>
-                    <small>Starts @ ₹220</small>
-                </div>
+            <div class="dish-card" onclick="openItem('Chicken Masala', 220, 400)">
+                <img src="https://images.unsplash.com/photo-1603894527177-9426f04d9c8c?w=300" class="dish-img">
+                <h3>Chicken Masala</h3>
+                <small>Starts @ ₹220</small>
             </div>
 
-            <div class="dish-card">
-                <img src="https://images.unsplash.com/photo-1533777857889-4be7c70b33f7?w=300" class="dish-img" alt="Butter Naan">
-                <div class="dish-info">
-                    <h3>Butter Naan</h3>
-                    <small>Starts @ ₹40</small>
-                </div>
+            <div class="dish-card" onclick="openItem('Butter Naan', 40, 70)">
+                <img src="https://images.unsplash.com/photo-1533777857889-4be7c70b33f7?w=300" class="dish-img">
+                <h3>Butter Naan</h3>
+                <small>Starts @ ₹40</small>
             </div>
 
-            <div class="dish-card">
-                <img src="https://images.unsplash.com/photo-1546833999-b9f581a1996d?w=300" class="dish-img" alt="Dal Tadka">
-                <div class="dish-info">
-                    <h3>Dal Tadka</h3>
-                    <small>Starts @ ₹120</small>
-                </div>
+            <div class="dish-card" onclick="openItem('Dal Tadka', 120, 200)">
+                <img src="https://images.unsplash.com/photo-1546833999-b9f581a1996d?w=300" class="dish-img">
+                <h3>Dal Tadka</h3>
+                <small>Starts @ ₹120</small>
             </div>
 
         </div>
     </div>
 
-    <div class="total-bill-bar">
-        Total Bill: ₹0
+    <div id="item-modal" class="modal-box">
+        <h2 id="modal-item-name" style="color:var(--gold); margin-top:0;">Item</h2>
+        <div style="display:flex; justify-content: space-around; margin: 20px 0;">
+            <div>Half <br> <span id="hp"></span></div>
+            <div>Full <br> <span id="fp"></span></div>
+        </div>
+        <button onclick="addToCart()" style="width:100%; background:var(--gold); padding:15px; border-radius:15px; border:none; font-weight:800; cursor:pointer;">ADD TO CART</button>
+        <p onclick="closeModal()" style="opacity:0.5; margin-top:15px; cursor:pointer;">Cancel</p>
     </div>
 
+    <div class="cart-bar" id="cart-bar">
+        <span>Bill: ₹<span id="tb">0</span></span>
+        <button onclick="sendOrder()" style="background:#000; color:#fff; border:none; padding:8px 20px; border-radius:12px; font-weight:800;">ORDER NOW</button>
+    </div>
+
+    <script>
+        const CLOUD_URL = "https://your-app-name.onrender.com"; 
+        const TABLE_ID = "01"; 
+        const socket = io(CLOUD_URL);
+
+        const myUrl = window.location.href.split('?')[0];
+        document.getElementById('qr-img').src = `https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${myUrl}?table=${TABLE_ID}&mode=mobile`;
+
+        function startFlow(mode) {
+            document.getElementById('choice-view').style.display = 'none';
+            document.getElementById('splash-screen').style.display = 'flex';
+            setTimeout(() => {
+                document.getElementById('splash-screen').style.display = 'none';
+                document.getElementById('menu-view').style.display = 'block';
+            }, 2000);
+        }
+
+        function openItem(name, hp, fp) {
+            document.getElementById('modal-item-name').innerText = name;
+            document.getElementById('hp').innerText = `₹${hp}`;
+            document.getElementById('fp').innerText = `₹${fp}`;
+            document.getElementById('item-modal').style.display = 'block';
+        }
+
+        function closeModal() { document.getElementById('item-modal').style.display = 'none'; }
+
+        function addToCart() {
+            document.getElementById('cart-bar').style.display = 'flex';
+            closeModal();
+        }
+
+        function sendOrder() {
+            alert("Order Sent to Manager!");
+        }
+    </script>
 </body>
 </html>
