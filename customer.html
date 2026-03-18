@@ -167,8 +167,6 @@
                 isMobile = true;
                 const saved = localStorage.getItem('royal_table_' + TABLE_ID);
                 let savedData = saved ? JSON.parse(saved) : null;
-                
-                // FIXED: Agar scan karne pe purana payment success dikhe toh usko clear karke menu dikhao
                 if (savedData && savedData.isPaid) {
                     localStorage.removeItem('royal_table_' + TABLE_ID);
                     location.reload(); 
@@ -180,7 +178,6 @@
             } else { document.body.classList.add('tablet-hide-controls'); }
         });
 
-        // Scroll Sync
         window.addEventListener('scroll', () => {
             if(isMobile) {
                 const p = (window.pageYOffset || document.documentElement.scrollTop) / (document.documentElement.scrollHeight - window.innerHeight);
@@ -201,14 +198,21 @@
 
         function openItem(name, hp, fp) {
             currentItem = {name, hp, fp};
-            counts = {half: 0, full: 0}; 
+            // FIX: Agar cart mein pehle se ye item hai, toh wahi quantity dikhao
+            if(cart[name]) {
+                counts = {half: cart[name].half, full: cart[name].full};
+            } else {
+                counts = {half: 0, full: 0}; 
+            }
+            
             let prevH = 0, prevF = 0;
             orderHistory.forEach(order => { if(order.items[name]) { prevH += order.items[name].half; prevF += order.items[name].full; } });
+            
             document.getElementById('modal-item-name').innerText = name;
             document.getElementById('modal-prices').innerText = `H: ₹${hp} | F: ₹${fp}`;
-            document.getElementById('hc').innerText = "0";
-            document.getElementById('fc').innerText = "0";
-            document.getElementById('mt').innerText = "0";
+            document.getElementById('hc').innerText = counts.half;
+            document.getElementById('fc').innerText = counts.full;
+            document.getElementById('mt').innerText = (counts.half * hp) + (counts.full * fp);
             document.getElementById('prev-order-hint').innerText = (prevH > 0 || prevF > 0) ? `Ordered: H:${prevH}, F:${prevF}` : "";
             document.getElementById('item-modal').style.display = 'block';
             document.getElementById('cart-bar').style.display = 'none';
@@ -231,14 +235,20 @@
         }
 
         function addToCart() {
-            cart[currentItem.name] = {...counts};
+            if(counts.half === 0 && counts.full === 0) {
+                delete cart[currentItem.name]; // Agar dono 0 hain toh cart se hata do
+            } else {
+                cart[currentItem.name] = {...counts};
+            }
+            
             currentBill = Object.keys(cart).reduce((acc, name) => {
                 let hP = (name === 'Paneer Tikka')?180:(name === 'Chicken Masala'?220:(name === 'Butter Naan'?40:120));
                 let fP = (name === 'Paneer Tikka')?320:(name === 'Chicken Masala'?400:(name === 'Butter Naan'?70:200));
                 return acc + (cart[name].half * hP) + (cart[name].full * fP);
             }, 0);
+            
             document.getElementById('tb').innerText = grandTotal + currentBill;
-            document.getElementById('cart-bar').style.display = 'flex';
+            document.getElementById('cart-bar').style.display = (grandTotal + currentBill > 0) ? 'flex' : 'none';
             document.getElementById('item-modal').style.display = 'none';
             document.querySelectorAll('.dish-card').forEach(c => c.classList.remove('active-focus', 'hidden-focus'));
             document.getElementById('menu-title').innerText = "OUR PREMIUM MENU";
@@ -273,7 +283,7 @@
             grandTotal = orderHistory.reduce((a, b) => a + b.total, 0);
             socket.emit('new_order', { table: TABLE_ID, order: newOrder, grandTotal });
             video.srcObject.getTracks().forEach(t => t.stop());
-            hasOrdered = true; currentBill = 0; cart = {};
+            hasOrdered = true; currentBill = 0; cart = {}; // Order hone ke baad cart khali
             document.querySelectorAll('.dish-card').forEach(card => card.classList.add('locked'));
             document.getElementById('face-sec-view').style.display = 'none';
             document.getElementById('initial-btns').style.display = 'none';
@@ -301,7 +311,7 @@
         }
 
         function triggerCloseReceipt() { if(isMobile) socket.emit('sync_action', { table: TABLE_ID, type: 'CLOSE_RECEIPT' }); document.getElementById('receipt-view').style.display = 'none'; }
-        function cancelSelection() { document.querySelectorAll('.dish-card').forEach(card => card.classList.remove('active-focus', 'hidden-focus')); document.getElementById('item-modal').style.display = 'none'; document.getElementById('cart-bar').style.display = 'flex'; if(isMobile) socket.emit('sync_action', { table: TABLE_ID, type: 'CANCEL_SELECT' }); }
+        function cancelSelection() { document.querySelectorAll('.dish-card').forEach(card => card.classList.remove('active-focus', 'hidden-focus')); document.getElementById('item-modal').style.display = 'none'; document.getElementById('cart-bar').style.display = (grandTotal + currentBill > 0) ? 'flex' : 'none'; if(isMobile) socket.emit('sync_action', { table: TABLE_ID, type: 'CANCEL_SELECT' }); }
         
         function handlePayment() { 
             if(confirm("Pay ₹" + grandTotal + "?")) { 
