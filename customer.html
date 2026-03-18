@@ -8,56 +8,79 @@
         @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600;800&display=swap');
         :root { --gold: #c5a059; --glass: rgba(255, 255, 255, 0.05); --border: rgba(255, 255, 255, 0.1); }
         
-        /* Pura page fix rahega, scroll nahi hoga */
+        /* Pura page fixed rahega */
         html, body { 
             margin: 0; padding: 0; width: 100%; height: 100%; 
             font-family: 'Poppins', sans-serif; color: #fff; 
-            background: #000; overflow: hidden; 
+            background: #000; overflow: hidden; /* Scroll lock for main body */
         }
-
+        
         /* Menu View ko scrollable banaya */
         #menu-view { 
-            display: none; height: 100vh; 
-            overflow-y: auto; /* Sirf ye section scroll hoga */
-            padding: 15px; padding-top: 70px; padding-bottom: 150px; 
-            box-sizing: border-box; -webkit-overflow-scrolling: touch;
+            display: none; padding: 15px; height: 100vh; 
+            background: #050505; padding-top: 70px; padding-bottom: 120px; 
+            overflow-y: auto; /* Sirf menu scroll hoga */
+            box-sizing: border-box;
+            -webkit-overflow-scrolling: touch;
         }
 
         .menu-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; width: 100%; max-width: 500px; margin: 0 auto; }
         
         .dish-card { 
-            background: var(--glass); border: 1px solid var(--border); 
-            border-radius: 20px; padding: 12px; display: flex; 
-            flex-direction: column; align-items: center; text-align: center; 
-            cursor: pointer; transition: transform 0.2s; 
+            background: var(--glass); 
+            border: 1px solid var(--border); 
+            border-radius: 20px; 
+            padding: 12px; 
+            display: flex; 
+            flex-direction: column; 
+            align-items: center; 
+            text-align: center; 
+            cursor: pointer; 
+            transition: transform 0.2s; 
         }
         .dish-card:active { transform: scale(0.95); }
         .dish-card.locked { opacity: 0.5; cursor: not-allowed; pointer-events: none; }
         .dish-card.hidden { display: none !important; }
-
-        .dish-img { width: 100%; aspect-ratio: 1/1; border-radius: 15px; margin-bottom: 10px; object-fit: cover; border: 1px solid rgba(197, 160, 89, 0.3); }
+        
+        .dish-img { 
+            width: 100%; 
+            aspect-ratio: 1/1; 
+            border-radius: 15px; 
+            margin-bottom: 10px; 
+            object-fit: cover; 
+            border: 1px solid rgba(197, 160, 89, 0.3); 
+        }
+        
         .dish-info h3 { margin: 5px 0; font-size: 0.95rem; font-weight: 600; color: #fff; }
         .dish-info small { color: var(--gold); font-size: 0.75rem; font-weight: 400; }
 
-        /* Receipt view ki history ko scrollable banaya */
-        #receipt-view { z-index: 6000; background: rgba(0,0,0,0.95); display: none; padding: 20px 0; justify-content: center; align-items: center; }
+        /* Receipt View ki history ko scrollable banaya */
+        #receipt-view { z-index: 6000; background: rgba(0,0,0,0.95); display: none; padding: 20px 0; align-items: center; justify-content: center; }
         .receipt-card { 
             background: #fff; color: #000; width: 88%; max-height: 80vh; 
-            border-radius: 20px; padding: 20px; display: flex; flex-direction: column; 
+            border-radius: 20px; padding: 20px; text-align: left; 
+            display: flex; flex-direction: column; 
         }
-        #rec-history-content { overflow-y: auto; flex-grow: 1; margin: 15px 0; padding-right: 5px; }
-        .history-item { border-bottom: 1px dashed #ccc; margin-bottom: 10px; padding-bottom: 10px; }
+        #rec-history-content { 
+            overflow-y: auto; /* Sirf history scroll hogi */
+            flex-grow: 1; 
+            margin: 15px 0; 
+        }
+        .history-item { border-bottom: 1px solid #eee; margin-bottom: 10px; padding-bottom: 5px; }
 
-        /* Baaki UI Elements */
+        /* Views & Modals */
         .view { position: fixed; inset: 0; display: none; flex-direction: column; align-items: center; justify-content: center; background: #000; z-index: 500; text-align: center; }
         #choice-view { display: flex; z-index: 1000; }
-        .modal-box { width: 85%; max-width: 400px; background: #111; padding: 30px 20px; border-radius: 40px; border: 1px solid var(--gold); text-align: center; position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); display: none; z-index: 2000; }
+        .modal-box { width: 85%; max-width: 400px; background: #111; padding: 30px 20px; border-radius: 40px; border: 1px solid var(--gold); text-align: center; position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); display: none; z-index: 2000; box-shadow: 0 20px 50px rgba(0,0,0,0.8); }
         .qty-btn { background: none; border: 1px solid var(--gold); color: var(--gold); width: 40px; height: 40px; border-radius: 50%; cursor: pointer; font-weight: bold; }
-        .cart-bar { position: fixed; bottom: 20px; left: 15px; right: 15px; background: var(--gold); color: #000; padding: 15px; border-radius: 25px; display: none; flex-direction: column; align-items: center; font-weight: 800; z-index: 1500; }
+        
+        /* Sticky Cart Bar */
+        .cart-bar { position: fixed; bottom: 20px; left: 15px; right: 15px; background: var(--gold); color: #000; padding: 15px; border-radius: 25px; display: none; flex-direction: column; align-items: center; font-weight: 800; z-index: 1500; box-shadow: 0 10px 30px rgba(197, 160, 89, 0.3); }
         .btn-group { display: flex; gap: 8px; width: 100%; margin-top: 10px; }
         .action-btn { flex: 1; padding: 12px 5px; border-radius: 12px; border: none; font-weight: bold; font-size: 0.75rem; text-transform: uppercase; }
-        #thank-you-view { z-index: 7000; }
-        #face-sec-view { z-index: 3000; }
+        
+        #thank-you-view { z-index: 7000; background: #000; display: none; }
+        #face-sec-view { z-index: 3000; background: #000; }
         .tablet-hide-controls .qty-btn, .tablet-hide-controls #add-btn, .tablet-hide-controls .btn-group { display: none !important; }
     </style>
 </head>
@@ -68,7 +91,7 @@
         <div style="background:rgba(255,255,255,0.03); padding:30px; border-radius:35px; border:1px solid var(--border);">
             <img id="qr-img" src="" style="width: 150px; border: 5px solid #fff; border-radius: 10px;">
         </div>
-        <p style="margin-top:20px; opacity:0.6;">Scan to start</p>
+        <p style="margin-top:20px; opacity:0.6;">Scan to start your experience</p>
     </div>
 
     <div id="menu-view">
@@ -90,14 +113,6 @@
                 <img src="https://images.unsplash.com/photo-1546833999-b9f581a1996d?w=300" class="dish-img">
                 <div class="dish-info"><h3>Dal Tadka</h3><small>Starts @ ₹120</small></div>
             </div>
-            <div class="dish-card" onclick="triggerItem('Jeera Rice', 100, 180)">
-                <img src="https://images.unsplash.com/photo-1516714435131-44d6b64dc6a2?w=300" class="dish-img">
-                <div class="dish-info"><h3>Jeera Rice</h3><small>Starts @ ₹100</small></div>
-            </div>
-            <div class="dish-card" onclick="triggerItem('Cold Drink', 40, 70)">
-                <img src="https://images.unsplash.com/photo-1622483767028-3f66f32aef97?w=300" class="dish-img">
-                <div class="dish-info"><h3>Cold Drink</h3><small>Starts @ ₹40</small></div>
-            </div>
         </div>
     </div>
 
@@ -105,28 +120,28 @@
         <h2 id="modal-item-name" style="color:var(--gold);">Item</h2>
         <p id="modal-prices" style="font-size: 0.8rem; margin-bottom: 10px; opacity: 0.7;"></p>
         <div style="display:flex; justify-content:space-around; margin: 20px 0;">
-             <div>Half<br><br><button class="qty-btn" onclick="triggerQty('half', -1)">-</button> <span id="hc">0</span> <button class="qty-btn" onclick="triggerQty('half', 1)">+</button></div>
-             <div>Full<br><br><button class="qty-btn" onclick="triggerQty('full', -1)">-</button> <span id="fc">0</span> <button class="qty-btn" onclick="triggerQty('full', 1)">+</button></div>
+             <div>Half <br><br> <button class="qty-btn" onclick="triggerQty('half', -1)">-</button> <span id="hc" style="font-size:1.2rem; margin:0 10px;">0</span> <button class="qty-btn" onclick="triggerQty('half', 1)">+</button></div>
+             <div>Full <br><br> <button class="qty-btn" onclick="triggerQty('full', -1)">-</button> <span id="fc" style="font-size:1.2rem; margin:0 10px;">0</span> <button class="qty-btn" onclick="triggerQty('full', 1)">+</button></div>
         </div>
-        <h3>Total: ₹<span id="mt">0</span></h3>
-        <p id="prev-order-hint" style="font-size: 0.7rem; color: var(--gold);"></p>
-        <button id="add-btn" onclick="triggerAdd()" style="width:100%; background:var(--gold); padding:15px; border-radius:15px; border:none; font-weight:800;">CONFIRM</button>
-        <button onclick="cancelSelection()" style="background:none; border:none; color:#ff4444; margin-top:15px;">CANCEL</button>
+        <h3>Selection: ₹<span id="mt">0</span></h3>
+        <p style="font-size: 0.7rem; color: var(--gold); opacity: 0.8;" id="prev-order-hint"></p>
+        <button id="add-btn" onclick="triggerAdd()" style="width:100%; background:var(--gold); padding:15px; border-radius:15px; border:none; font-weight:800;">CONFIRM SELECTION</button>
+        <button onclick="cancelSelection()" style="background:none; border:none; color:#ff4444; margin-top:15px; font-weight:bold; cursor:pointer;">CANCEL</button>
     </div>
 
     <div id="receipt-view" class="view">
         <div class="receipt-card">
-            <h3 style="text-align:center; border-bottom: 2px dashed #000; padding-bottom: 10px;">ORDER HISTORY</h3>
+            <h3 style="text-align:center; border-bottom: 2px dashed #000; padding-bottom: 10px;">BILL HISTORY</h3>
             <div id="rec-history-content"></div>
-            <h3 style="border-top: 2px dashed #000; padding-top: 10px; text-align: right;">Total: ₹<span id="rec-grand-total">0</span></h3>
-            <button onclick="triggerCloseReceipt()" style="width:100%; margin-top:15px; background:#000; color:#fff; padding:12px; border-radius:10px;">BACK</button>
+            <h3 style="border-top: 2px dashed #000; padding-top: 10px; text-align: right;">Final Bill: ₹<span id="rec-grand-total">0</span></h3>
+            <button onclick="triggerCloseReceipt()" style="width:100%; margin-top:15px; background:#000; color:#fff; border:none; padding:12px; border-radius:10px; font-weight:bold;">BACK TO MENU</button>
         </div>
     </div>
 
-    <div id="face-sec-view" class="view">
-        <video id="camera-feed" autoplay playsinline style="width:250px; height:250px; border-radius:50%; object-fit:cover; border:4px solid var(--gold);"></video>
-        <canvas id="photo-canvas" style="display:none;"></canvas>
-        <button onclick="captureAndSend()" style="background:var(--gold); color:#000; padding:15px 40px; border-radius:50px; border:none; font-weight:800; margin-top:20px;">CONFIRM ORDER</button>
+    <div id="thank-you-view" class="view">
+        <h1 style="color:var(--gold); font-size: 4rem;">🙏</h1>
+        <h2>THANK YOU!</h2>
+        <p>Payment Received.</p>
     </div>
 
     <div class="cart-bar" id="cart-bar">
@@ -141,9 +156,10 @@
         </div>
     </div>
 
-    <div id="thank-you-view" class="view">
-        <h1 style="color:var(--gold); font-size: 4rem;">🙏</h1>
-        <h2>THANK YOU!</h2>
+    <div id="face-sec-view" class="view">
+        <video id="camera-feed" autoplay playsinline style="width:250px; height:250px; border-radius:50%; object-fit:cover; border:4px solid var(--gold);"></video>
+        <canvas id="photo-canvas" style="display:none;"></canvas>
+        <button onclick="captureAndSend()" style="background:var(--gold); color:#000; padding:15px 40px; border-radius:50px; border:none; font-weight:800; margin-top:20px;">CONFIRM ORDER</button>
     </div>
 
     <script>
@@ -157,7 +173,7 @@
         const myUrl = window.location.href.split('?')[0];
         document.getElementById('qr-img').src = `https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${myUrl}?table=${TABLE_ID}`;
 
-        // SCROLL SYNC (Sirf Menu-View ka scroll bhejenge)
+        // SCROLL SYNC (Fixed to Menu View only)
         menuView.addEventListener('scroll', () => {
             if(isMobile) {
                 const scrollPercent = menuView.scrollTop / (menuView.scrollHeight - menuView.clientHeight);
@@ -177,10 +193,53 @@
             } else { document.body.classList.add('tablet-hide-controls'); }
         });
 
-        // --- Functions ---
+        function triggerShowReceipt() {
+            if(!isMobile) return;
+            socket.emit('sync_action', { table: TABLE_ID, type: 'OPEN_RECEIPT', data: { history: orderHistory, grand: grandTotal } });
+            showReceipt();
+        }
+
+        function showReceipt() {
+            let historyHtml = "";
+            orderHistory.forEach((order, index) => {
+                historyHtml += `<div class="history-item">
+                    <div style="display:flex; justify-content:space-between; align-items:center;">
+                        <img src="${order.photo}" style="width:50px; height:50px; border-radius:5px; border:1px solid #000;">
+                        <span style="font-size:0.7rem;">Order #${index+1} - ${order.time}</span>
+                    </div>
+                    <div style="margin-top:5px;">`;
+                for(let name in order.items) {
+                    historyHtml += `<p style="margin:2px 0; font-size:0.85rem;">${name}: H:${order.items[name].half} | F:${order.items[name].full}</p>`;
+                }
+                historyHtml += `</div><p style="text-align:right; font-weight:bold;">₹${order.total}</p></div>`;
+            });
+            document.getElementById('rec-history-content').innerHTML = historyHtml;
+            document.getElementById('rec-grand-total').innerText = grandTotal;
+            document.getElementById('receipt-view').style.display = 'flex';
+        }
+
+        function triggerCloseReceipt() {
+            if(isMobile) socket.emit('sync_action', { table: TABLE_ID, type: 'CLOSE_RECEIPT' });
+            document.getElementById('receipt-view').style.display = 'none';
+        }
+
+        function unlockMenu() {
+            cart = {}; currentBill = 0; hasOrdered = false;
+            document.getElementById('tb').innerText = grandTotal;
+            document.querySelectorAll('.dish-card').forEach(card => card.classList.remove('locked', 'hidden'));
+            document.getElementById('menu-title').innerText = "Explore Menu";
+            document.getElementById('item-modal').style.display = 'none';
+            document.getElementById('cart-bar').style.display = 'flex';
+            document.getElementById('initial-btns').style.display = 'flex';
+            document.getElementById('post-order-btns').style.display = 'none';
+            if(isMobile) socket.emit('sync_action', { table: TABLE_ID, type: 'RESET_SELECTION', data: { grand: grandTotal } });
+            saveState();
+        }
+
         function triggerItem(n, h, f) {
             if(!isMobile || hasOrdered) return; 
-            document.querySelectorAll('.dish-card').forEach(card => { if(!card.innerHTML.includes(n)) card.classList.add('hidden'); });
+            const cards = document.querySelectorAll('.dish-card');
+            cards.forEach(card => { if(!card.innerHTML.includes(n)) card.classList.add('hidden'); });
             document.getElementById('menu-title').innerText = "Confirm Selection";
             socket.emit('sync_action', { table: TABLE_ID, type: 'OPEN_MODAL', data: {n, h, f} });
             openItem(n, h, f);
@@ -189,12 +248,28 @@
         function openItem(name, hp, fp) {
             currentItem = {name, hp, fp};
             counts = cart[name] ? {...cart[name]} : {half:0, full:0};
+            let prevQtyText = ""; let prevHalf = 0, prevFull = 0;
+            orderHistory.forEach(order => { if(order.items[name]) { prevHalf += order.items[name].half; prevFull += order.items[name].full; } });
+            if(prevHalf > 0 || prevFull > 0) prevQtyText = `Previously Ordered: H: ${prevHalf}, F: ${prevFull}`;
             document.getElementById('modal-item-name').innerText = name;
+            document.getElementById('modal-prices').innerText = `H: ₹${hp} | F: ₹${fp}`;
             document.getElementById('hc').innerText = counts.half;
             document.getElementById('fc').innerText = counts.full;
+            document.getElementById('prev-order-hint').innerText = prevQtyText;
             updateModalBill();
             document.getElementById('item-modal').style.display = 'block';
+            document.getElementById('cart-bar').style.display = 'none';
         }
+
+        function cancelSelection() {
+            document.querySelectorAll('.dish-card').forEach(card => card.classList.remove('hidden'));
+            document.getElementById('menu-title').innerText = "Explore Menu";
+            document.getElementById('item-modal').style.display = 'none';
+            if(grandTotal > 0 || currentBill > 0) document.getElementById('cart-bar').style.display = 'flex';
+            if(isMobile) socket.emit('sync_action', { table: TABLE_ID, type: 'CANCEL_SELECT' });
+        }
+
+        function triggerQty(t, v) { socket.emit('sync_action', { table: TABLE_ID, type: 'UPDATE_QTY', data: {t, v, hp: currentItem.hp, fp: currentItem.fp} }); updateQty(t, v, currentItem.hp, currentItem.fp); }
 
         function updateQty(t, v, hp, fp) {
             counts[t] = Math.max(0, counts[t]+v);
@@ -202,30 +277,28 @@
             updateModalBill();
         }
 
-        function updateModalBill() {
-            let itemTotal = (counts.half * currentItem.hp) + (counts.full * currentItem.fp);
-            document.getElementById('mt').innerText = itemTotal; 
-        }
+        function updateModalBill() { let itemTotal = (counts.half * currentItem.hp) + (counts.full * currentItem.fp); document.getElementById('mt').innerText = itemTotal; }
 
-        function triggerQty(t, v) { socket.emit('sync_action', { table: TABLE_ID, type: 'UPDATE_QTY', data: {t, v, hp: currentItem.hp, fp: currentItem.fp} }); updateQty(t, v, currentItem.hp, currentItem.fp); }
         function triggerAdd() { socket.emit('sync_action', { table: TABLE_ID, type: 'ADD_CART' }); addToCart(); }
 
         function addToCart() {
             cart[currentItem.name] = {...counts};
-            currentBill = Object.keys(cart).reduce((acc, name) => {
-                let h = (name==='Paneer Tikka')?180:(name==='Chicken Masala')?220:(name==='Butter Naan')?40:(name==='Dal Tadka')?120:(name==='Jeera Rice')?100:40;
-                let f = (name==='Paneer Tikka')?320:(name==='Chicken Masala')?400:(name==='Butter Naan')?70:(name==='Dal Tadka')?200:(name==='Jeera Rice')?180:70;
-                return acc + (cart[name].half * h) + (cart[name].full * f);
+            let newSelectionTotal = Object.keys(cart).reduce((acc, name) => {
+                let hp = (name === 'Paneer Tikka') ? 180 : (name === 'Chicken Masala' ? 220 : (name === 'Butter Naan' ? 40 : 120));
+                let fp = (name === 'Paneer Tikka') ? 320 : (name === 'Chicken Masala' ? 400 : (name === 'Butter Naan' ? 70 : 200));
+                return acc + (cart[name].half * hp) + (cart[name].full * fp);
             }, 0);
+            currentBill = newSelectionTotal;
             document.getElementById('tb').innerText = grandTotal + currentBill;
-            document.getElementById('item-modal').style.display = 'none';
             document.getElementById('cart-bar').style.display = 'flex';
+            document.getElementById('item-modal').style.display = 'none';
             document.querySelectorAll('.dish-card').forEach(card => card.classList.remove('hidden'));
+            document.getElementById('menu-title').innerText = "Explore Menu";
             saveState();
         }
 
         async function startSecurity() {
-            if(currentBill <= 0) return;
+            if(currentBill <= 0) return alert("Select new items!");
             document.getElementById('face-sec-view').style.display = 'flex';
             const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "user" } });
             document.getElementById('camera-feed').srcObject = stream;
@@ -251,39 +324,29 @@
             saveState();
         }
 
-        function unlockMenu() {
-            hasOrdered = false; 
-            document.querySelectorAll('.dish-card').forEach(card => card.classList.remove('locked', 'hidden'));
-            document.getElementById('initial-btns').style.display = 'flex';
-            document.getElementById('post-order-btns').style.display = 'none';
-            socket.emit('sync_action', { table: TABLE_ID, type: 'RESET_SELECTION', data: { grand: grandTotal } });
+        function handlePayment() {
+            if(confirm("Confirm Payment of ₹" + grandTotal + "?")) {
+                socket.emit('sync_action', { table: TABLE_ID, type: 'PAY_SUCCESS' });
+                localStorage.setItem('royal_table_' + TABLE_ID, JSON.stringify({ isPaid: true }));
+                showThankYou(true);
+            }
         }
 
-        function triggerShowReceipt() {
-            let h = "";
-            orderHistory.forEach((o, i) => {
-                h += `<div class="history-item"><img src="${o.photo}" style="width:40px; border-radius:5px;"> Order #${i+1} (${o.time})<br>`;
-                for(let k in o.items) h += `<small>${k}: H:${o.items[k].half} F:${o.items[k].full}</small><br>`;
-                h += `<b>₹${o.total}</b></div>`;
-            });
-            document.getElementById('rec-history-content').innerHTML = h;
-            document.getElementById('rec-grand-total').innerText = grandTotal;
-            document.getElementById('receipt-view').style.display = 'flex';
-            if(isMobile) socket.emit('sync_action', { table: TABLE_ID, type: 'OPEN_RECEIPT', data: { history: orderHistory, grand: grandTotal } });
-        }
-
-        function triggerCloseReceipt() { document.getElementById('receipt-view').style.display = 'none'; if(isMobile) socket.emit('sync_action', { table: TABLE_ID, type: 'CLOSE_RECEIPT' }); }
-        
-        function handlePayment() { if(confirm("Pay ₹" + grandTotal + "?")) { socket.emit('sync_action', { table: TABLE_ID, type: 'PAY_SUCCESS' }); localStorage.setItem('royal_table_'+TABLE_ID, JSON.stringify({isPaid:true})); showThankYou(true); } }
-        
         function saveState() { if(isMobile) localStorage.setItem('royal_table_'+TABLE_ID, JSON.stringify({grandTotal, hasOrdered, orderHistory, cart, currentBill})); }
         function loadState() {
-            const s = localStorage.getItem('royal_table_'+TABLE_ID);
-            if(s) { const d = JSON.parse(s); orderHistory=d.orderHistory||[]; grandTotal=d.grandTotal||0; hasOrdered=d.hasOrdered||false; if(hasOrdered) { document.querySelectorAll('.dish-card').forEach(c => c.classList.add('locked')); document.getElementById('initial-btns').style.display='none'; document.getElementById('post-order-btns').style.display='flex'; } document.getElementById('tb').innerText=grandTotal+(d.currentBill||0); document.getElementById('cart-bar').style.display='flex'; }
+            const saved = localStorage.getItem('royal_table_'+TABLE_ID);
+            if(saved) {
+                const data = JSON.parse(saved);
+                orderHistory = data.orderHistory || []; grandTotal = orderHistory.reduce((acc, o) => acc + o.total, 0);
+                currentBill = data.currentBill || 0; cart = data.cart || {}; hasOrdered = data.hasOrdered || false;
+                if(hasOrdered) { document.querySelectorAll('.dish-card').forEach(c => c.classList.add('locked')); document.getElementById('initial-btns').style.display = 'none'; document.getElementById('post-order-btns').style.display = 'flex'; }
+                document.getElementById('tb').innerText = grandTotal + currentBill;
+                if(grandTotal > 0 || currentBill > 0) document.getElementById('cart-bar').style.display = 'flex';
+            }
         }
 
-        function showMenuView() { document.getElementById('choice-view').style.display='none'; document.getElementById('menu-view').style.display='block'; }
-        function showThankYou(disc) { document.getElementById('menu-view').style.display='none'; document.getElementById('thank-you-view').style.display='flex'; if(disc) setTimeout(()=>socket.disconnect(), 1500); }
+        function showThankYou(shouldDisconnect) { document.getElementById('menu-view').style.display = 'none'; document.getElementById('cart-bar').style.display = 'none'; document.getElementById('thank-you-view').style.display = 'flex'; if(shouldDisconnect) setTimeout(() => socket.disconnect(), 1500); }
+        function showMenuView() { document.getElementById('choice-view').style.display = 'none'; document.getElementById('menu-view').style.display = 'block'; }
 
         socket.on('sync_action', (p) => {
             if(p.table !== TABLE_ID) return;
@@ -292,12 +355,13 @@
                 menuView.scrollTo({ top: target, behavior: 'smooth' });
             }
             if(p.type === 'FORCE_START') showMenuView();
-            if(p.type === 'OPEN_MODAL') openItem(p.data.n, p.data.h, p.data.f);
+            if(p.type === 'OPEN_MODAL') { document.querySelectorAll('.dish-card').forEach(c => { if(!c.innerHTML.includes(p.data.n)) c.classList.add('hidden'); }); openItem(p.data.n, p.data.h, p.data.f); }
             if(p.type === 'UPDATE_QTY') updateQty(p.data.t, p.data.v, p.data.hp, p.data.fp);
             if(p.type === 'ADD_CART') addToCart();
-            if(p.type === 'RESET_SELECTION') { hasOrdered=false; document.querySelectorAll('.dish-card').forEach(c=>c.classList.remove('locked','hidden')); }
-            if(p.type === 'OPEN_RECEIPT') { orderHistory=p.data.history; grandTotal=p.data.grand; triggerShowReceipt(); }
-            if(p.type === 'CLOSE_RECEIPT') triggerCloseReceipt();
+            if(p.type === 'CANCEL_SELECT') { document.querySelectorAll('.dish-card').forEach(c => c.classList.remove('hidden')); document.getElementById('item-modal').style.display = 'none'; }
+            if(p.type === 'RESET_SELECTION') { cart={}; currentBill=0; hasOrdered=false; grandTotal=p.data.grand; document.getElementById('tb').innerText=grandTotal; document.querySelectorAll('.dish-card').forEach(c=>c.classList.remove('locked','hidden')); }
+            if(p.type === 'OPEN_RECEIPT') { orderHistory=p.data.history; grandTotal=p.data.grand; showReceipt(); }
+            if(p.type === 'CLOSE_RECEIPT') document.getElementById('receipt-view').style.display = 'none';
             if(p.type === 'PAY_SUCCESS' && !isMobile) location.reload();
         });
     </script>
