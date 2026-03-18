@@ -131,6 +131,7 @@
         <h1 style="color:var(--gold); font-size: 5rem;">🙏</h1>
         <h2>THANK YOU!</h2>
         <p>Payment Received.</p>
+        <p style="font-size: 0.8rem; margin-top: 20px; opacity: 0.5;">Cleaning session for next order...</p>
     </div>
 
     <div class="cart-bar" id="cart-bar">
@@ -164,14 +165,6 @@
         const myUrl = window.location.href.split('?')[0];
         document.getElementById('qr-img').src = `https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=${myUrl}?table=${TABLE_ID}`;
 
-        // Scroll Sync
-        window.addEventListener('scroll', () => {
-            if(isMobile) {
-                const p = (window.pageYOffset || document.documentElement.scrollTop) / (document.documentElement.scrollHeight - window.innerHeight);
-                socket.emit('sync_action', { table: TABLE_ID, type: 'SCROLL_SYNC', data: { p } });
-            }
-        });
-
         socket.on('connect', () => {
             socket.emit('join_table', TABLE_ID);
             const params = new URLSearchParams(window.location.search);
@@ -179,8 +172,18 @@
                 isMobile = true;
                 const saved = localStorage.getItem('royal_table_' + TABLE_ID);
                 let savedData = saved ? JSON.parse(saved) : null;
-                if (savedData && savedData.isPaid) { showThankYou(false); } 
-                else { socket.emit('sync_action', { table: TABLE_ID, type: 'FORCE_START' }); showMenuView(); loadState(); }
+                
+                // FIXED: Agar session already paid hai, toh restart logic check karo
+                if (savedData && savedData.isPaid) { 
+                    // Agar scan abhi kiya hai (url hit), toh clear karke naya menu dikhao
+                    localStorage.removeItem('royal_table_' + TABLE_ID);
+                    location.reload(); 
+                } 
+                else { 
+                    socket.emit('sync_action', { table: TABLE_ID, type: 'FORCE_START' }); 
+                    showMenuView(); 
+                    loadState(); 
+                }
             } else { document.body.classList.add('tablet-hide-controls'); }
         });
 
@@ -198,12 +201,9 @@
 
         function openItem(name, hp, fp) {
             currentItem = {name, hp, fp};
-            // FIX: Purani quantity clean karke fresh values set karna
             counts = {half: 0, full: 0}; 
-            
             let prevH = 0, prevF = 0;
             orderHistory.forEach(order => { if(order.items[name]) { prevH += order.items[name].half; prevF += order.items[name].full; } });
-            
             document.getElementById('modal-item-name').innerText = name;
             document.getElementById('modal-prices').innerText = `H: ₹${hp} | F: ₹${fp}`;
             document.getElementById('hc').innerText = "0";
@@ -247,9 +247,7 @@
 
         function unlockMenu() {
             hasOrdered = false; 
-            cart = {}; // Clear current cart for new order
-            currentBill = 0;
-            counts = {half: 0, full: 0}; // Reset local counters
+            cart = {}; currentBill = 0; counts = {half: 0, full: 0};
             document.getElementById('tb').innerText = grandTotal;
             document.querySelectorAll('.dish-card').forEach(c => c.classList.remove('locked', 'active-focus', 'hidden-focus'));
             document.getElementById('initial-btns').style.display = 'flex';
@@ -305,15 +303,28 @@
 
         function triggerCloseReceipt() { if(isMobile) socket.emit('sync_action', { table: TABLE_ID, type: 'CLOSE_RECEIPT' }); document.getElementById('receipt-view').style.display = 'none'; }
         function cancelSelection() { document.querySelectorAll('.dish-card').forEach(card => card.classList.remove('active-focus', 'hidden-focus')); document.getElementById('item-modal').style.display = 'none'; document.getElementById('cart-bar').style.display = 'flex'; if(isMobile) socket.emit('sync_action', { table: TABLE_ID, type: 'CANCEL_SELECT' }); }
-        function handlePayment() { if(confirm("Pay ₹" + grandTotal + "?")) { socket.emit('sync_action', { table: TABLE_ID, type: 'PAY_SUCCESS' }); localStorage.setItem('royal_table_' + TABLE_ID, JSON.stringify({ isPaid: true })); showThankYou(true); } }
-        function saveState() { if(!isMobile) return; localStorage.setItem('royal_table_' + TABLE_ID, JSON.stringify({ grandTotal, hasOrdered, orderHistory, cart, currentBill })); }
+        
+        function handlePayment() { 
+            if(confirm("Pay ₹" + grandTotal + "?")) { 
+                socket.emit('sync_action', { table: TABLE_ID, type: 'PAY_SUCCESS' }); 
+                localStorage.setItem('royal_table_' + TABLE_ID, JSON.stringify({ isPaid: true })); 
+                showThankYou(true); 
+
+                // FIXED: 10 second baad data reset kar do naye customer ke liye
+                setTimeout(() => {
+                    localStorage.removeItem('royal_table_' + TABLE_ID);
+                    location.href = window.location.origin + window.location.pathname; // QR page pe bhej do ya refresh
+                }, 10000);
+            } 
+        }
+
+        function saveState() { if(!isMobile) return; localStorage.setItem('royal_table_' + TABLE_ID, JSON.stringify({ grandTotal, hasOrdered, orderHistory, cart, currentBill, isPaid: false })); }
         function loadState() { const saved = localStorage.getItem('royal_table_' + TABLE_ID); if(saved) { const d = JSON.parse(saved); orderHistory = d.orderHistory||[]; grandTotal = d.grandTotal||0; currentBill = d.currentBill||0; cart = d.cart||{}; hasOrdered = d.hasOrdered||false; if(hasOrdered){ document.querySelectorAll('.dish-card').forEach(c=>c.classList.add('locked')); document.getElementById('initial-btns').style.display='none'; document.getElementById('post-order-btns').style.display='flex'; } document.getElementById('tb').innerText = grandTotal+currentBill; if(grandTotal>0||currentBill>0) document.getElementById('cart-bar').style.display='flex'; } }
         function showThankYou(dis) { document.getElementById('menu-view').style.display='none'; document.getElementById('cart-bar').style.display='none'; document.getElementById('thank-you-view').style.display='flex'; if(dis) setTimeout(()=>socket.disconnect(), 2000); }
         function showMenuView() { document.getElementById('choice-view').style.display='none'; document.getElementById('menu-view').style.display='block'; }
 
         socket.on('sync_action', (p) => {
             if(p.table !== TABLE_ID) return;
-            if(p.type === 'SCROLL_SYNC' && !isMobile) window.scrollTo({ top: p.data.p * (document.documentElement.scrollHeight - window.innerHeight), behavior: 'auto' });
             if(p.type === 'OPEN_MODAL') openItem(p.data.n, p.data.h, p.data.f);
             if(p.type === 'UPDATE_QTY') updateQty(p.data.t, p.data.v, p.data.hp, p.data.fp);
             if(p.type === 'ADD_CART') addToCart();
