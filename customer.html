@@ -7,7 +7,7 @@
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600;800&display=swap');
         :root { --gold: #c5a059; --glass: rgba(255, 255, 255, 0.05); --border: rgba(255, 255, 255, 0.1); }
-        html, body { margin: 0; padding: 0; width: 100%; height: 100%; font-family: 'Poppins', sans-serif; color: #fff; background: #000; overflow-x: hidden; }
+        html, body { margin: 0; padding: 0; width: 100%; height: 100%; font-family: 'Poppins', sans-serif; color: #fff; background: #000; overflow-x: hidden; scroll-behavior: smooth; }
         
         #menu-view { display: none; padding: 15px; min-height: 100vh; background: #050505; padding-top: 70px; padding-bottom: 120px; }
         .menu-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; width: 100%; max-width: 500px; margin: 0 auto; transition: all 0.3s ease; }
@@ -25,7 +25,7 @@
             transition: transform 0.2s; 
         }
         .dish-card.locked { opacity: 0.5; cursor: not-allowed; pointer-events: none; }
-        .dish-card.hidden { display: none !important; } /* Hidden when another item is selected */
+        .dish-card.hidden { display: none !important; }
         
         .dish-img { width: 100%; aspect-ratio: 1/1; border-radius: 15px; margin-bottom: 10px; object-fit: cover; border: 1px solid rgba(197, 160, 89, 0.3); }
         .dish-info h3 { margin: 5px 0; font-size: 0.95rem; font-weight: 600; color: #fff; }
@@ -81,19 +81,25 @@
                 <img src="https://images.unsplash.com/photo-1546833999-b9f581a1996d?w=300" class="dish-img">
                 <div class="dish-info"><h3>Dal Tadka</h3><small>H: 120 | F: 200</small></div>
             </div>
+            <div class="dish-card" onclick="triggerItem('Veg Biryani', 150, 280)">
+                <img src="https://images.unsplash.com/photo-1563379091339-03b21bc4a4f8?w=300" class="dish-img">
+                <div class="dish-info"><h3>Veg Biryani</h3><small>H: 150 | F: 280</small></div>
+            </div>
+            <div class="dish-card" onclick="triggerItem('Cold Coffee', 80, 140)">
+                <img src="https://images.unsplash.com/photo-1559496417-e7f25cb247f3?w=300" class="dish-img">
+                <div class="dish-info"><h3>Cold Coffee</h3><small>H: 80 | F: 140</small></div>
+            </div>
         </div>
     </div>
 
     <div id="item-modal" class="modal-box">
         <h2 id="modal-item-name" style="color:var(--gold); margin-bottom: 5px;">Item</h2>
         <p id="modal-prices" style="font-size: 0.8rem; margin-bottom: 20px; opacity: 0.7;"></p>
-        
         <div style="display:flex; justify-content:space-around; margin: 20px 0;">
              <div>Half <br><br> <button class="qty-btn" onclick="triggerQty('half', -1)">-</button> <span id="hc" style="font-size:1.2rem; margin:0 10px;">0</span> <button class="qty-btn" onclick="triggerQty('half', 1)">+</button></div>
              <div>Full <br><br> <button class="qty-btn" onclick="triggerQty('full', -1)">-</button> <span id="fc" style="font-size:1.2rem; margin:0 10px;">0</span> <button class="qty-btn" onclick="triggerQty('full', 1)">+</button></div>
         </div>
         <h3>Selection: ₹<span id="mt">0</span></h3>
-        <p style="font-size: 0.7rem; color: var(--gold); opacity: 0.8;" id="prev-order-hint"></p>
         <button id="add-btn" onclick="triggerAdd()" style="width:100%; background:var(--gold); padding:15px; border-radius:15px; border:none; font-weight:800;">CONFIRM SELECTION</button>
         <button onclick="cancelSelection()" style="background:none; border:none; color:#ff4444; margin-top:15px; font-weight:bold; cursor:pointer;">CANCEL</button>
     </div>
@@ -121,18 +127,21 @@
                 const saved = localStorage.getItem('royal_table_' + TABLE_ID);
                 if (saved && JSON.parse(saved).isPaid) showThankYou(false);
                 else { socket.emit('sync_action', { table: TABLE_ID, type: 'FORCE_START' }); showMenuView(); loadState(); }
+                
+                // --- SCROLL SYNC (MOBILE SIDE) ---
+                window.onscroll = () => {
+                    let scrollPercent = window.scrollY / (document.body.scrollHeight - window.innerHeight);
+                    socket.emit('sync_action', { table: TABLE_ID, type: 'SCROLL_SYNC', data: { percent: scrollPercent } });
+                };
             } else document.body.classList.add('tablet-hide-controls');
         });
 
+        // --- FUNCTIONS ---
         function triggerItem(n, h, f) {
             if(!isMobile || hasOrdered) return;
-            // Focus Mode: Hide other items
             const cards = document.querySelectorAll('.dish-card');
-            cards.forEach(card => {
-                if(!card.innerHTML.includes(n)) card.classList.add('hidden');
-            });
+            cards.forEach(card => { if(!card.innerHTML.includes(n)) card.classList.add('hidden'); });
             document.getElementById('menu-title').innerText = "Confirm Selection";
-            
             socket.emit('sync_action', { table: TABLE_ID, type: 'OPEN_MODAL', data: {n, h, f} });
             openItem(n, h, f);
         }
@@ -140,7 +149,6 @@
         function openItem(name, hp, fp) {
             currentItem = {name, hp, fp};
             counts = cart[name] ? {...cart[name]} : {half:0, full:0};
-            
             document.getElementById('modal-item-name').innerText = name;
             document.getElementById('modal-prices').innerText = `Rate: Half ₹${hp} | Full ₹${fp}`;
             document.getElementById('hc').innerText = counts.half;
@@ -151,7 +159,6 @@
         }
 
         function cancelSelection() {
-            // Restore all items
             document.querySelectorAll('.dish-card').forEach(card => card.classList.remove('hidden'));
             document.getElementById('menu-title').innerText = "Explore Menu";
             document.getElementById('item-modal').style.display = 'none';
@@ -171,7 +178,7 @@
         }
 
         function updateModalBill() {
-            let itemTotal = (counts.half * currentItem.hp) + (counts.full * currentItem.fp);
+            let itemTotal = (counts.half * (currentItem.hp||0)) + (counts.full * (currentItem.fp||0));
             document.getElementById('mt').innerText = itemTotal; 
         }
 
@@ -187,19 +194,15 @@
                 let fPrice = (name === 'Paneer Tikka') ? 320 : (name === 'Chicken Masala' ? 400 : (name === 'Butter Naan' ? 70 : 200));
                 return acc + (cart[name].half * hPrice) + (cart[name].full * fPrice);
             }, 0);
-            
             currentBill = newSelectionTotal;
             document.getElementById('tb').innerText = grandTotal + currentBill;
             document.getElementById('cart-bar').style.display = 'flex';
             document.getElementById('item-modal').style.display = 'none';
-            
-            // Restore menu
             document.querySelectorAll('.dish-card').forEach(card => card.classList.remove('hidden'));
             document.getElementById('menu-title').innerText = "Explore Menu";
             saveState();
         }
 
-        // --- Recalculate & Security Logic ---
         function recalculateGrandTotal() { grandTotal = orderHistory.reduce((acc, order) => acc + order.total, 0); }
         
         async function startSecurity() {
@@ -255,37 +258,26 @@
             }
         }
 
-        function showThankYou(shouldDisconnect) {
-            document.getElementById('menu-view').style.display = 'none';
-            document.getElementById('cart-bar').style.display = 'none';
-            document.getElementById('thank-you-view').style.display = 'flex';
-            if(shouldDisconnect) setTimeout(() => { socket.disconnect(); }, 1500);
-        }
-
+        function showThankYou(shouldDisconnect) { document.getElementById('menu-view').style.display = 'none'; document.getElementById('cart-bar').style.display = 'none'; document.getElementById('thank-you-view').style.display = 'flex'; if(shouldDisconnect) setTimeout(() => { socket.disconnect(); }, 1500); }
         function showMenuView() { document.getElementById('choice-view').style.display = 'none'; document.getElementById('menu-view').style.display = 'block'; }
 
+        // --- SOCKET SYNC ---
         socket.on('sync_action', (p) => {
             if(p.table !== TABLE_ID) return;
             if(p.type === 'FORCE_START') showMenuView();
+            if(p.type === 'SCROLL_SYNC' && !isMobile) {
+                // Tablet/PC side scrolling
+                let targetPos = p.data.percent * (document.body.scrollHeight - window.innerHeight);
+                window.scrollTo(0, targetPos);
+            }
             if(p.type === 'OPEN_MODAL') { 
-                // Tablet sync for Focus Mode
-                document.querySelectorAll('.dish-card').forEach(card => {
-                    if(!card.innerHTML.includes(p.data.n)) card.classList.add('hidden');
-                });
+                document.querySelectorAll('.dish-card').forEach(card => { if(!card.innerHTML.includes(p.data.n)) card.classList.add('hidden'); });
                 openItem(p.data.n, p.data.h, p.data.f); 
             }
             if(p.type === 'UPDATE_QTY') updateQty(p.data.t, p.data.v, p.data.hp, p.data.fp);
             if(p.type === 'ADD_CART') addToCart();
-            if(p.type === 'CANCEL_SELECT') {
-                 document.querySelectorAll('.dish-card').forEach(card => card.classList.remove('hidden'));
-                 document.getElementById('item-modal').style.display = 'none';
-            }
-            if(p.type === 'RESET_SELECTION') { 
-                cart = {}; currentBill = 0; grandTotal = p.data.grand || 0;
-                document.getElementById('tb').innerText = grandTotal; 
-                document.getElementById('item-modal').style.display = 'none';
-                document.querySelectorAll('.dish-card').forEach(card => card.classList.remove('locked', 'hidden'));
-            }
+            if(p.type === 'CANCEL_SELECT') { document.querySelectorAll('.dish-card').forEach(card => card.classList.remove('hidden')); document.getElementById('item-modal').style.display = 'none'; }
+            if(p.type === 'RESET_SELECTION') { cart = {}; currentBill = 0; grandTotal = p.data.grand || 0; document.getElementById('tb').innerText = grandTotal; document.getElementById('item-modal').style.display = 'none'; document.querySelectorAll('.dish-card').forEach(card => card.classList.remove('locked', 'hidden')); }
             if(p.type === 'PAY_SUCCESS' && !isMobile) location.reload();
         });
     </script>
