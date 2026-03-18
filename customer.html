@@ -7,23 +7,10 @@
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600;800&display=swap');
         :root { --gold: #c5a059; --glass: rgba(255, 255, 255, 0.05); --border: rgba(255, 255, 255, 0.1); }
+        html, body { margin: 0; padding: 0; width: 100%; height: 100%; font-family: 'Poppins', sans-serif; color: #fff; background: #000; overflow-x: hidden; }
         
-        /* Pura page fixed rahega */
-        html, body { 
-            margin: 0; padding: 0; width: 100%; height: 100%; 
-            font-family: 'Poppins', sans-serif; color: #fff; 
-            background: #000; overflow: hidden; /* Scroll lock for main body */
-        }
-        
-        /* Menu View ko scrollable banaya */
-        #menu-view { 
-            display: none; padding: 15px; height: 100vh; 
-            background: #050505; padding-top: 70px; padding-bottom: 120px; 
-            overflow-y: auto; /* Sirf menu scroll hoga */
-            box-sizing: border-box;
-            -webkit-overflow-scrolling: touch;
-        }
-
+        /* Centered Grid Layout */
+        #menu-view { display: none; padding: 15px; min-height: 100vh; background: #050505; padding-top: 70px; padding-bottom: 120px; }
         .menu-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; width: 100%; max-width: 500px; margin: 0 auto; }
         
         .dish-card { 
@@ -40,7 +27,7 @@
         }
         .dish-card:active { transform: scale(0.95); }
         .dish-card.locked { opacity: 0.5; cursor: not-allowed; pointer-events: none; }
-        .dish-card.hidden { display: none !important; }
+        .dish-card.hidden { display: none !important; } /* Focus mode support */
         
         .dish-img { 
             width: 100%; 
@@ -54,20 +41,6 @@
         .dish-info h3 { margin: 5px 0; font-size: 0.95rem; font-weight: 600; color: #fff; }
         .dish-info small { color: var(--gold); font-size: 0.75rem; font-weight: 400; }
 
-        /* Receipt View ki history ko scrollable banaya */
-        #receipt-view { z-index: 6000; background: rgba(0,0,0,0.95); display: none; padding: 20px 0; align-items: center; justify-content: center; }
-        .receipt-card { 
-            background: #fff; color: #000; width: 88%; max-height: 80vh; 
-            border-radius: 20px; padding: 20px; text-align: left; 
-            display: flex; flex-direction: column; 
-        }
-        #rec-history-content { 
-            overflow-y: auto; /* Sirf history scroll hogi */
-            flex-grow: 1; 
-            margin: 15px 0; 
-        }
-        .history-item { border-bottom: 1px solid #eee; margin-bottom: 10px; padding-bottom: 5px; }
-
         /* Views & Modals */
         .view { position: fixed; inset: 0; display: none; flex-direction: column; align-items: center; justify-content: center; background: #000; z-index: 500; text-align: center; }
         #choice-view { display: flex; z-index: 1000; }
@@ -79,6 +52,9 @@
         .btn-group { display: flex; gap: 8px; width: 100%; margin-top: 10px; }
         .action-btn { flex: 1; padding: 12px 5px; border-radius: 12px; border: none; font-weight: bold; font-size: 0.75rem; text-transform: uppercase; }
         
+        #receipt-view { z-index: 6000; background: rgba(0,0,0,0.95); display: none; overflow-y: auto; padding: 20px 0; }
+        .receipt-card { background: #fff; color: #000; width: 88%; border-radius: 20px; padding: 20px; text-align: left; margin: auto; }
+        .history-item { border-bottom: 1px solid #eee; margin-bottom: 10px; padding-bottom: 5px; }
         #thank-you-view { z-index: 7000; background: #000; display: none; }
         #face-sec-view { z-index: 3000; background: #000; }
         .tablet-hide-controls .qty-btn, .tablet-hide-controls #add-btn, .tablet-hide-controls .btn-group { display: none !important; }
@@ -99,19 +75,31 @@
         <div class="menu-grid" id="main-grid">
             <div class="dish-card" onclick="triggerItem('Paneer Tikka', 180, 320)">
                 <img src="https://images.unsplash.com/photo-1567188040759-fb8a883dc6d8?w=300" class="dish-img">
-                <div class="dish-info"><h3>Paneer Tikka</h3><small>Starts @ ₹180</small></div>
+                <div class="dish-info">
+                    <h3>Paneer Tikka</h3>
+                    <small>Starts @ ₹180</small>
+                </div>
             </div>
             <div class="dish-card" onclick="triggerItem('Chicken Masala', 220, 400)">
                 <img src="https://images.unsplash.com/photo-1603894527177-9426f04d9c8c?w=300" class="dish-img">
-                <div class="dish-info"><h3>Chicken Masala</h3><small>Starts @ ₹220</small></div>
+                <div class="dish-info">
+                    <h3>Chicken Masala</h3>
+                    <small>Starts @ ₹220</small>
+                </div>
             </div>
             <div class="dish-card" onclick="triggerItem('Butter Naan', 40, 70)">
                 <img src="https://images.unsplash.com/photo-1533777857889-4be7c70b33f7?w=300" class="dish-img">
-                <div class="dish-info"><h3>Butter Naan</h3><small>Starts @ ₹40</small></div>
+                <div class="dish-info">
+                    <h3>Butter Naan</h3>
+                    <small>Starts @ ₹40</small>
+                </div>
             </div>
             <div class="dish-card" onclick="triggerItem('Dal Tadka', 120, 200)">
                 <img src="https://images.unsplash.com/photo-1546833999-b9f581a1996d?w=300" class="dish-img">
-                <div class="dish-info"><h3>Dal Tadka</h3><small>Starts @ ₹120</small></div>
+                <div class="dish-info">
+                    <h3>Dal Tadka</h3>
+                    <small>Starts @ ₹120</small>
+                </div>
             </div>
         </div>
     </div>
@@ -169,14 +157,13 @@
         let isMobile = false, currentBill = 0, grandTotal = 0, currentItem = {}, counts = {half:0, full:0}, hasOrdered = false;
         let cart = {}, orderHistory = []; 
 
-        const menuView = document.getElementById('menu-view');
         const myUrl = window.location.href.split('?')[0];
         document.getElementById('qr-img').src = `https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${myUrl}?table=${TABLE_ID}`;
 
-        // SCROLL SYNC (Fixed to Menu View only)
-        menuView.addEventListener('scroll', () => {
+        // SCROLL SYNC
+        window.addEventListener('scroll', () => {
             if(isMobile) {
-                const scrollPercent = menuView.scrollTop / (menuView.scrollHeight - menuView.clientHeight);
+                const scrollPercent = window.scrollY / (document.documentElement.scrollHeight - window.innerHeight);
                 socket.emit('sync_action', { table: TABLE_ID, type: 'SCROLL', data: { percent: scrollPercent } });
             }
         });
@@ -188,9 +175,20 @@
                 isMobile = true;
                 const saved = localStorage.getItem('royal_table_' + TABLE_ID);
                 let savedData = saved ? JSON.parse(saved) : null;
-                if (savedData && savedData.isPaid) { showThankYou(false); } 
-                else { socket.emit('sync_action', { table: TABLE_ID, type: 'FORCE_START' }); showMenuView(); loadState(); }
-            } else { document.body.classList.add('tablet-hide-controls'); }
+                if (savedData && savedData.isPaid && window.performance.navigation.type !== 1) {
+                    localStorage.removeItem('royal_table_' + TABLE_ID);
+                    savedData = null;
+                }
+                if (savedData && savedData.isPaid) {
+                    showThankYou(false);
+                } else {
+                    socket.emit('sync_action', { table: TABLE_ID, type: 'FORCE_START' });
+                    showMenuView();
+                    loadState();
+                }
+            } else {
+                document.body.classList.add('tablet-hide-controls');
+            }
         });
 
         function triggerShowReceipt() {
@@ -224,7 +222,9 @@
         }
 
         function unlockMenu() {
-            cart = {}; currentBill = 0; hasOrdered = false;
+            cart = {}; 
+            currentBill = 0;
+            hasOrdered = false; // CRITICAL FIX: Taaki triggerItem chal sake
             document.getElementById('tb').innerText = grandTotal;
             document.querySelectorAll('.dish-card').forEach(card => card.classList.remove('locked', 'hidden'));
             document.getElementById('menu-title').innerText = "Explore Menu";
@@ -238,9 +238,13 @@
 
         function triggerItem(n, h, f) {
             if(!isMobile || hasOrdered) return; 
+            
             const cards = document.querySelectorAll('.dish-card');
-            cards.forEach(card => { if(!card.innerHTML.includes(n)) card.classList.add('hidden'); });
+            cards.forEach(card => { 
+                if(!card.innerHTML.includes(n)) card.classList.add('hidden'); 
+            });
             document.getElementById('menu-title').innerText = "Confirm Selection";
+
             socket.emit('sync_action', { table: TABLE_ID, type: 'OPEN_MODAL', data: {n, h, f} });
             openItem(n, h, f);
         }
@@ -248,9 +252,17 @@
         function openItem(name, hp, fp) {
             currentItem = {name, hp, fp};
             counts = cart[name] ? {...cart[name]} : {half:0, full:0};
-            let prevQtyText = ""; let prevHalf = 0, prevFull = 0;
-            orderHistory.forEach(order => { if(order.items[name]) { prevHalf += order.items[name].half; prevFull += order.items[name].full; } });
+            
+            let prevQtyText = "";
+            let prevHalf = 0, prevFull = 0;
+            orderHistory.forEach(order => {
+                if(order.items[name]) {
+                    prevHalf += order.items[name].half;
+                    prevFull += order.items[name].full;
+                }
+            });
             if(prevHalf > 0 || prevFull > 0) prevQtyText = `Previously Ordered: H: ${prevHalf}, F: ${prevFull}`;
+
             document.getElementById('modal-item-name').innerText = name;
             document.getElementById('modal-prices').innerText = `H: ₹${hp} | F: ₹${fp}`;
             document.getElementById('hc').innerText = counts.half;
@@ -269,7 +281,10 @@
             if(isMobile) socket.emit('sync_action', { table: TABLE_ID, type: 'CANCEL_SELECT' });
         }
 
-        function triggerQty(t, v) { socket.emit('sync_action', { table: TABLE_ID, type: 'UPDATE_QTY', data: {t, v, hp: currentItem.hp, fp: currentItem.fp} }); updateQty(t, v, currentItem.hp, currentItem.fp); }
+        function triggerQty(t, v) {
+            socket.emit('sync_action', { table: TABLE_ID, type: 'UPDATE_QTY', data: {t, v, hp: currentItem.hp, fp: currentItem.fp} });
+            updateQty(t, v, currentItem.hp, currentItem.fp);
+        }
 
         function updateQty(t, v, hp, fp) {
             counts[t] = Math.max(0, counts[t]+v);
@@ -277,17 +292,24 @@
             updateModalBill();
         }
 
-        function updateModalBill() { let itemTotal = (counts.half * currentItem.hp) + (counts.full * currentItem.fp); document.getElementById('mt').innerText = itemTotal; }
+        function updateModalBill() {
+            let itemTotal = (counts.half * currentItem.hp) + (counts.full * currentItem.fp);
+            document.getElementById('mt').innerText = itemTotal; 
+        }
 
-        function triggerAdd() { socket.emit('sync_action', { table: TABLE_ID, type: 'ADD_CART' }); addToCart(); }
+        function triggerAdd() {
+            socket.emit('sync_action', { table: TABLE_ID, type: 'ADD_CART' });
+            addToCart();
+        }
 
         function addToCart() {
             cart[currentItem.name] = {...counts};
             let newSelectionTotal = Object.keys(cart).reduce((acc, name) => {
-                let hp = (name === 'Paneer Tikka') ? 180 : (name === 'Chicken Masala' ? 220 : (name === 'Butter Naan' ? 40 : 120));
-                let fp = (name === 'Paneer Tikka') ? 320 : (name === 'Chicken Masala' ? 400 : (name === 'Butter Naan' ? 70 : 200));
-                return acc + (cart[name].half * hp) + (cart[name].full * fp);
+                let hPrice = (name === 'Paneer Tikka') ? 180 : (name === 'Chicken Masala' ? 220 : (name === 'Butter Naan' ? 40 : 120));
+                let fPrice = (name === 'Paneer Tikka') ? 320 : (name === 'Chicken Masala' ? 400 : (name === 'Butter Naan' ? 70 : 200));
+                return acc + (cart[name].half * hPrice) + (cart[name].full * fPrice);
             }, 0);
+            
             currentBill = newSelectionTotal;
             document.getElementById('tb').innerText = grandTotal + currentBill;
             document.getElementById('cart-bar').style.display = 'flex';
@@ -310,57 +332,99 @@
             canvas.width = video.videoWidth; canvas.height = video.videoHeight;
             canvas.getContext('2d').drawImage(video, 0, 0);
             const photo = canvas.toDataURL('image/jpeg', 0.5);
-            const newOrder = { total: currentBill, photo, items: {...cart}, time: new Date().toLocaleTimeString() };
+            const time = new Date().toLocaleTimeString();
+            
+            const newOrder = { total: currentBill, photo, items: {...cart}, time };
             orderHistory.push(newOrder);
-            grandTotal = orderHistory.reduce((acc, o) => acc + o.total, 0);
+            recalculateGrandTotal();
+            
             socket.emit('new_order', { table: TABLE_ID, order: newOrder, grandTotal });
             video.srcObject.getTracks().forEach(t => t.stop());
+            
             hasOrdered = true; currentBill = 0; cart = {};
             document.querySelectorAll('.dish-card').forEach(card => card.classList.add('locked'));
             document.getElementById('face-sec-view').style.display = 'none';
             document.getElementById('initial-btns').style.display = 'none';
             document.getElementById('post-order-btns').style.display = 'flex';
+            document.getElementById('cart-bar').style.display = 'flex';
             document.getElementById('tb').innerText = grandTotal;
             saveState();
         }
 
+        function recalculateGrandTotal() {
+            grandTotal = orderHistory.reduce((acc, order) => acc + order.total, 0);
+        }
+
         function handlePayment() {
-            if(confirm("Confirm Payment of ₹" + grandTotal + "?")) {
+            if(confirm("Confirm Final Payment of ₹" + grandTotal + "?")) {
                 socket.emit('sync_action', { table: TABLE_ID, type: 'PAY_SUCCESS' });
                 localStorage.setItem('royal_table_' + TABLE_ID, JSON.stringify({ isPaid: true }));
                 showThankYou(true);
             }
         }
 
-        function saveState() { if(isMobile) localStorage.setItem('royal_table_'+TABLE_ID, JSON.stringify({grandTotal, hasOrdered, orderHistory, cart, currentBill})); }
+        function saveState() {
+            if(!isMobile) return;
+            localStorage.setItem('royal_table_' + TABLE_ID, JSON.stringify({ grandTotal, hasOrdered, orderHistory, cart, currentBill }));
+        }
+
         function loadState() {
-            const saved = localStorage.getItem('royal_table_'+TABLE_ID);
+            const saved = localStorage.getItem('royal_table_' + TABLE_ID);
             if(saved) {
                 const data = JSON.parse(saved);
-                orderHistory = data.orderHistory || []; grandTotal = orderHistory.reduce((acc, o) => acc + o.total, 0);
-                currentBill = data.currentBill || 0; cart = data.cart || {}; hasOrdered = data.hasOrdered || false;
-                if(hasOrdered) { document.querySelectorAll('.dish-card').forEach(c => c.classList.add('locked')); document.getElementById('initial-btns').style.display = 'none'; document.getElementById('post-order-btns').style.display = 'flex'; }
+                orderHistory = data.orderHistory || [];
+                recalculateGrandTotal();
+                currentBill = data.currentBill || 0;
+                cart = data.cart || {};
+                hasOrdered = data.hasOrdered || false;
+                if(hasOrdered) {
+                    document.querySelectorAll('.dish-card').forEach(card => card.classList.add('locked'));
+                    document.getElementById('initial-btns').style.display = 'none';
+                    document.getElementById('post-order-btns').style.display = 'flex';
+                }
                 document.getElementById('tb').innerText = grandTotal + currentBill;
                 if(grandTotal > 0 || currentBill > 0) document.getElementById('cart-bar').style.display = 'flex';
             }
         }
 
-        function showThankYou(shouldDisconnect) { document.getElementById('menu-view').style.display = 'none'; document.getElementById('cart-bar').style.display = 'none'; document.getElementById('thank-you-view').style.display = 'flex'; if(shouldDisconnect) setTimeout(() => socket.disconnect(), 1500); }
-        function showMenuView() { document.getElementById('choice-view').style.display = 'none'; document.getElementById('menu-view').style.display = 'block'; }
+        function showThankYou(shouldDisconnect) {
+            document.getElementById('menu-view').style.display = 'none';
+            document.getElementById('cart-bar').style.display = 'none';
+            document.getElementById('thank-you-view').style.display = 'flex';
+            if(shouldDisconnect) setTimeout(() => { socket.disconnect(); }, 1500);
+        }
+
+        function showMenuView() {
+            document.getElementById('choice-view').style.display = 'none';
+            document.getElementById('menu-view').style.display = 'block';
+        }
 
         socket.on('sync_action', (p) => {
             if(p.table !== TABLE_ID) return;
             if(p.type === 'SCROLL' && !isMobile) {
-                const target = p.data.percent * (menuView.scrollHeight - menuView.clientHeight);
-                menuView.scrollTo({ top: target, behavior: 'smooth' });
+                const targetScroll = p.data.percent * (document.documentElement.scrollHeight - window.innerHeight);
+                window.scrollTo({ top: targetScroll, behavior: 'smooth' });
             }
             if(p.type === 'FORCE_START') showMenuView();
-            if(p.type === 'OPEN_MODAL') { document.querySelectorAll('.dish-card').forEach(c => { if(!c.innerHTML.includes(p.data.n)) c.classList.add('hidden'); }); openItem(p.data.n, p.data.h, p.data.f); }
+            if(p.type === 'OPEN_MODAL') {
+                document.querySelectorAll('.dish-card').forEach(card => { if(!card.innerHTML.includes(p.data.n)) card.classList.add('hidden'); });
+                openItem(p.data.n, p.data.h, p.data.f);
+            }
             if(p.type === 'UPDATE_QTY') updateQty(p.data.t, p.data.v, p.data.hp, p.data.fp);
             if(p.type === 'ADD_CART') addToCart();
-            if(p.type === 'CANCEL_SELECT') { document.querySelectorAll('.dish-card').forEach(c => c.classList.remove('hidden')); document.getElementById('item-modal').style.display = 'none'; }
-            if(p.type === 'RESET_SELECTION') { cart={}; currentBill=0; hasOrdered=false; grandTotal=p.data.grand; document.getElementById('tb').innerText=grandTotal; document.querySelectorAll('.dish-card').forEach(c=>c.classList.remove('locked','hidden')); }
-            if(p.type === 'OPEN_RECEIPT') { orderHistory=p.data.history; grandTotal=p.data.grand; showReceipt(); }
+            if(p.type === 'CANCEL_SELECT') {
+                document.querySelectorAll('.dish-card').forEach(card => card.classList.remove('hidden'));
+                document.getElementById('item-modal').style.display = 'none';
+            }
+            if(p.type === 'RESET_SELECTION') { 
+                cart = {}; currentBill = 0; hasOrdered = false;
+                grandTotal = p.data.grand || 0;
+                document.getElementById('tb').innerText = grandTotal; 
+                document.getElementById('item-modal').style.display = 'none';
+                document.querySelectorAll('.dish-card').forEach(card => card.classList.remove('locked', 'hidden'));
+                document.getElementById('menu-title').innerText = "Explore Menu";
+            }
+            if(p.type === 'OPEN_RECEIPT') { orderHistory = p.data.history; grandTotal = p.data.grand; showReceipt(); }
             if(p.type === 'CLOSE_RECEIPT') document.getElementById('receipt-view').style.display = 'none';
             if(p.type === 'PAY_SUCCESS' && !isMobile) location.reload();
         });
