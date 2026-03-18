@@ -176,10 +176,9 @@
         const myUrl = window.location.href.split('?')[0];
         document.getElementById('qr-img').src = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${myUrl}?table=${TABLE_ID}`;
 
-        // --- NEW IMPROVED SCROLL SYNC ---
+        // --- IMPROVED SCROLL SYNC ---
         window.addEventListener('scroll', () => {
             if(isMobile) {
-                // Sending percentage to handle different screen sizes
                 const scrollPos = window.pageYOffset || document.documentElement.scrollTop;
                 const maxScroll = document.documentElement.scrollHeight - window.innerHeight;
                 const percentage = maxScroll > 0 ? scrollPos / maxScroll : 0;
@@ -207,16 +206,15 @@
         });
 
         function triggerItem(n, h, f) {
-            if(!isMobile || hasOrdered) return;
-            // FOCUS MODE: Hide others, highlight selected
+            // FIX: If ordered, only allow selection if we unlocked the menu
+            if(!isMobile || (hasOrdered && document.getElementById('initial-btns').style.display === 'none')) return;
+            
+            // FOCUS MODE
             const safeId = n.replace(/\s+/g, '-');
             const allCards = document.querySelectorAll('.dish-card');
             allCards.forEach(card => {
-                if(card.id === `card-${safeId}`) {
-                    card.classList.add('active-focus');
-                } else {
-                    card.classList.add('hidden-focus');
-                }
+                if(card.innerHTML.includes(n)) card.classList.add('active-focus');
+                else card.classList.add('hidden-focus');
             });
             document.getElementById('menu-title').innerText = "Confirm Your Selection";
             socket.emit('sync_action', { table: TABLE_ID, type: 'OPEN_MODAL', data: {n, h, f} });
@@ -225,9 +223,7 @@
 
         function cancelSelection() {
             const allCards = document.querySelectorAll('.dish-card');
-            allCards.forEach(card => {
-                card.classList.remove('active-focus', 'hidden-focus');
-            });
+            allCards.forEach(card => card.classList.remove('active-focus', 'hidden-focus'));
             document.getElementById('menu-title').innerText = "OUR PREMIUM MENU";
             document.getElementById('item-modal').style.display = 'none';
             if(grandTotal > 0 || currentBill > 0) document.getElementById('cart-bar').style.display = 'flex';
@@ -278,15 +274,14 @@
         function addToCart() {
             cart[currentItem.name] = {...counts};
             let newTotal = Object.keys(cart).reduce((acc, name) => {
-                let hP = (name === 'Paneer Tikka')?180:(name === 'Chicken Masala'?220:(name === 'Butter Naan'?40:(name === 'Dal Tadka'?120:(name==='Jeera Rice'?100:150))));
-                let fP = (name === 'Paneer Tikka')?320:(name === 'Chicken Masala'?400:(name === 'Butter Naan'?70:(name === 'Dal Tadka'?200:(name==='Jeera Rice'?180:260))));
+                let hP = (name === 'Paneer Tikka')?180:(name === 'Chicken Masala'?220:(name === 'Butter Naan'?40:120));
+                let fP = (name === 'Paneer Tikka')?320:(name === 'Chicken Masala'?400:(name === 'Butter Naan'?70:200));
                 return acc + (cart[name].half * hP) + (cart[name].full * fP);
             }, 0);
             currentBill = newTotal;
             document.getElementById('tb').innerText = grandTotal + currentBill;
             document.getElementById('cart-bar').style.display = 'flex';
             document.getElementById('item-modal').style.display = 'none';
-            // Restore Grid
             document.querySelectorAll('.dish-card').forEach(c => c.classList.remove('active-focus', 'hidden-focus'));
             document.getElementById('menu-title').innerText = "OUR PREMIUM MENU";
             saveState();
@@ -304,7 +299,7 @@
             const canvas = document.getElementById('photo-canvas');
             canvas.width = video.videoWidth; canvas.height = video.videoHeight;
             canvas.getContext('2d').drawImage(video, 0, 0);
-            const photo = canvas.toDataURL('image/jpeg', 0.6);
+            const photo = canvas.toDataURL('image/jpeg', 0.5);
             const time = new Date().toLocaleTimeString();
             const newOrder = { total: currentBill, photo, items: {...cart}, time };
             orderHistory.push(newOrder);
@@ -329,17 +324,12 @@
         function showReceipt() {
             let html = "";
             orderHistory.forEach((ord, idx) => {
-                html += `<div class="history-item">
-                    <div style="display:flex; justify-content:space-between;">
-                        <img src="${ord.photo}" style="width:60px; height:60px; border-radius:10px; border:1px solid #ddd;">
-                        <span style="font-size:0.75rem; color:#666;">#${idx+1} | ${ord.time}</span>
-                    </div>
-                    <div style="margin:10px 0;">`;
+                html += `<div class="history-item"><div style="display:flex; justify-content:space-between;"><img src="${ord.photo}" style="width:55px; height:55px; border-radius:8px;"><span style="font-size:0.7rem;">#${idx+1} | ${ord.time}</span></div><div style="margin:8px 0;">`;
                 for(let item in ord.items) {
                     if(ord.items[item].half > 0 || ord.items[item].full > 0)
-                        html += `<p style="margin:4px 0; font-size:0.9rem;"><b>${item}</b>: H:${ord.items[item].half} F:${ord.items[item].full}</p>`;
+                        html += `<p style="margin:2px 0; font-size:0.85rem;">${item}: H:${ord.items[item].half} F:${ord.items[item].full}</p>`;
                 }
-                html += `</div><p style="text-align:right; font-weight:800; margin:0;">₹${ord.total}</p></div>`;
+                html += `</div><p style="text-align:right; font-weight:bold;">₹${ord.total}</p></div>`;
             });
             document.getElementById('rec-history-content').innerHTML = html;
             document.getElementById('rec-grand-total').innerText = grandTotal;
@@ -352,10 +342,11 @@
         }
 
         function unlockMenu() {
+            // FIX: reset hasOrdered and UI for Add More
+            hasOrdered = false; 
             cart = {}; currentBill = 0;
             document.getElementById('tb').innerText = grandTotal;
             document.querySelectorAll('.dish-card').forEach(c => c.classList.remove('locked', 'active-focus', 'hidden-focus'));
-            document.getElementById('item-modal').style.display = 'none';
             document.getElementById('initial-btns').style.display = 'flex';
             document.getElementById('post-order-btns').style.display = 'none';
             if(isMobile) socket.emit('sync_action', { table: TABLE_ID, type: 'RESET_UI', data: { g: grandTotal } });
@@ -403,19 +394,16 @@
 
         function showMenuView() { document.getElementById('choice-view').style.display = 'none'; document.getElementById('menu-view').style.display = 'block'; }
 
-        // --- SOCKET LISTENER ---
         socket.on('sync_action', (p) => {
             if(p.table !== TABLE_ID) return;
-
             if(p.type === 'SCROLL_SYNC' && !isMobile) {
                 const max = document.documentElement.scrollHeight - window.innerHeight;
                 window.scrollTo({ top: p.data.p * max, behavior: 'auto' });
             }
             if(p.type === 'FORCE_START') showMenuView();
             if(p.type === 'OPEN_MODAL') {
-                const sId = p.data.n.replace(/\s+/g, '-');
                 document.querySelectorAll('.dish-card').forEach(c => {
-                    if(c.id === `card-${sId}`) c.classList.add('active-focus');
+                    if(c.innerHTML.includes(p.data.n)) c.classList.add('active-focus');
                     else c.classList.add('hidden-focus');
                 });
                 openItem(p.data.n, p.data.h, p.data.f);
@@ -426,9 +414,11 @@
             if(p.type === 'OPEN_RECEIPT') { orderHistory = p.data.h; grandTotal = p.data.g; showReceipt(); }
             if(p.type === 'CLOSE_RECEIPT') document.getElementById('receipt-view').style.display = 'none';
             if(p.type === 'RESET_UI') {
-                grandTotal = p.data.g;
+                hasOrdered = false; grandTotal = p.data.g;
                 document.getElementById('tb').innerText = grandTotal;
                 document.querySelectorAll('.dish-card').forEach(c => c.classList.remove('locked', 'active-focus', 'hidden-focus'));
+                document.getElementById('initial-btns').style.display = 'flex';
+                document.getElementById('post-order-btns').style.display = 'none';
             }
             if(p.type === 'PAY_SUCCESS' && !isMobile) location.reload();
         });
