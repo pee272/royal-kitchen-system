@@ -43,6 +43,10 @@
             <img src="https://images.unsplash.com/photo-1567188040759-fb8a883dc6d8?w=200" class="dish-img">
             <div><h3>Paneer Tikka</h3><small style="color:var(--gold)">H: 180 | F: 320</small></div>
         </div>
+        <div class="dish-card" onclick="triggerItem('Chicken Masala', 220, 400)">
+            <img src="https://images.unsplash.com/photo-1603894527177-9426f04d9c8c?w=200" class="dish-img">
+            <div><h3>Chicken Masala</h3><small style="color:var(--gold)">H: 220 | F: 400</small></div>
+        </div>
     </div>
 
     <div id="item-modal" class="modal-box">
@@ -51,7 +55,8 @@
              <div>Half <br><br> <button class="qty-btn" onclick="triggerQty('half', -1)">-</button> <span id="hc" style="font-size:1.2rem; margin:0 10px;">0</span> <button class="qty-btn" onclick="triggerQty('half', 1)">+</button></div>
              <div>Full <br><br> <button class="qty-btn" onclick="triggerQty('full', -1)">-</button> <span id="fc" style="font-size:1.2rem; margin:0 10px;">0</span> <button class="qty-btn" onclick="triggerQty('full', 1)">+</button></div>
         </div>
-        <h3>Item Total: ₹<span id="mt">0</span></h3>
+        <h3>Total Bill: ₹<span id="mt">0</span></h3>
+        <p style="font-size: 0.7rem; color: var(--gold); opacity: 0.8;" id="prev-order-hint"></p>
         <button id="add-btn" onclick="triggerAdd()" style="width:100%; background:var(--gold); padding:15px; border-radius:15px; border:none; font-weight:800;">CONFIRM SELECTION</button>
     </div>
 
@@ -59,7 +64,7 @@
         <div class="receipt-card">
             <h3 style="text-align:center; border-bottom: 2px dashed #000; padding-bottom: 10px;">BILL HISTORY</h3>
             <div id="rec-history-content"></div>
-            <h3 style="border-top: 2px dashed #000; padding-top: 10px; text-align: right;">Grand Total: ₹<span id="rec-grand-total">0</span></h3>
+            <h3 style="border-top: 2px dashed #000; padding-top: 10px; text-align: right;">Final Bill: ₹<span id="rec-grand-total">0</span></h3>
             <button onclick="triggerCloseReceipt()" style="width:100%; margin-top:15px; background:#000; color:#fff; border:none; padding:12px; border-radius:10px; font-weight:bold;">BACK TO MENU</button>
         </div>
     </div>
@@ -67,11 +72,11 @@
     <div id="thank-you-view" class="view">
         <h1 style="color:var(--gold); font-size: 4rem;">🙏</h1>
         <h2>THANK YOU!</h2>
-        <p>Order Finished & Paid.</p>
+        <p>Payment Received.</p>
     </div>
 
     <div class="cart-bar" id="cart-bar">
-        <span>Current Bill: ₹<span id="tb">0</span></span>
+        <span>Total Bill: ₹<span id="tb">0</span></span>
         <div id="initial-btns" class="btn-group">
             <button class="action-btn" onclick="startSecurity()" style="background:#000; color:#fff; width:100%;">SEND ORDER</button>
         </div>
@@ -153,7 +158,7 @@
 
         function unlockMenu() {
             cart = {}; currentBill = 0;
-            document.getElementById('tb').innerText = 0;
+            document.getElementById('tb').innerText = grandTotal; // Add More karte hi purana grand total bar pe dikhega
             document.querySelectorAll('.dish-card').forEach(card => card.classList.remove('locked'));
             document.getElementById('item-modal').style.display = 'none';
             document.getElementById('cart-bar').style.display = 'flex';
@@ -171,10 +176,25 @@
         function openItem(name, hp, fp) {
             currentItem = {name, hp, fp};
             counts = cart[name] ? {...cart[name]} : {half:0, full:0};
+            
+            // Fix: Find previous quantity from history to show user
+            let prevQtyText = "";
+            let prevHalf = 0, prevFull = 0;
+            orderHistory.forEach(order => {
+                if(order.items[name]) {
+                    prevHalf += order.items[name].half;
+                    prevFull += order.items[name].full;
+                }
+            });
+            if(prevHalf > 0 || prevFull > 0) {
+                prevQtyText = `Previously Ordered: Half: ${prevHalf}, Full: ${prevFull}`;
+            }
+
             document.getElementById('modal-item-name').innerText = name;
             document.getElementById('hc').innerText = counts.half;
             document.getElementById('fc').innerText = counts.full;
-            document.getElementById('mt').innerText = (counts.half * hp) + (counts.full * fp);
+            document.getElementById('prev-order-hint').innerText = prevQtyText;
+            updateModalBill();
             document.getElementById('item-modal').style.display = 'block';
             document.getElementById('cart-bar').style.display = 'none';
         }
@@ -187,7 +207,12 @@
         function updateQty(t, v, hp, fp) {
             counts[t] = Math.max(0, counts[t]+v);
             document.getElementById(t==='half'?'hc':'fc').innerText = counts[t];
-            document.getElementById('mt').innerText = (counts.half * hp) + (counts.full * fp);
+            updateModalBill();
+        }
+
+        function updateModalBill() {
+            let itemTotal = (counts.half * currentItem.hp) + (counts.full * currentItem.fp);
+            document.getElementById('mt').innerText = grandTotal + itemTotal; // Realtime show GrandTotal + New Selection
         }
 
         function triggerAdd() {
@@ -197,15 +222,23 @@
 
         function addToCart() {
             cart[currentItem.name] = {...counts};
-            currentBill = Object.keys(cart).reduce((acc, name) => acc + (cart[name].half * 180) + (cart[name].full * 320), 0);
-            document.getElementById('tb').innerText = currentBill;
+            // Dynamic bill calculation
+            let newSelectionTotal = Object.keys(cart).reduce((acc, name) => {
+                // Simplification for the logic
+                let hPrice = (name === 'Paneer Tikka') ? 180 : 220;
+                let fPrice = (name === 'Paneer Tikka') ? 320 : 400;
+                return acc + (cart[name].half * hPrice) + (cart[name].full * fPrice);
+            }, 0);
+            
+            currentBill = newSelectionTotal;
+            document.getElementById('tb').innerText = grandTotal + currentBill;
             document.getElementById('cart-bar').style.display = 'flex';
             document.getElementById('item-modal').style.display = 'none';
             saveState();
         }
 
         async function startSecurity() {
-            if(currentBill <= 0) return alert("Select items first!");
+            if(currentBill <= 0) return alert("Kuch naya select karein!");
             document.getElementById('face-sec-view').style.display = 'flex';
             const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "user" } });
             document.getElementById('camera-feed').srcObject = stream;
@@ -218,22 +251,26 @@
             canvas.getContext('2d').drawImage(video, 0, 0);
             const photo = canvas.toDataURL('image/jpeg', 0.5);
             const time = new Date().toLocaleTimeString();
+            
             const newOrder = { total: currentBill, photo, items: {...cart}, time };
             orderHistory.push(newOrder);
-            grandTotal += currentBill;
+            grandTotal += currentBill; // Bill add ho gaya
+            
             socket.emit('new_order', { table: TABLE_ID, order: newOrder, grandTotal });
             video.srcObject.getTracks().forEach(t => t.stop());
+            
             hasOrdered = true;
             document.querySelectorAll('.dish-card').forEach(card => card.classList.add('locked'));
             document.getElementById('face-sec-view').style.display = 'none';
             document.getElementById('initial-btns').style.display = 'none';
             document.getElementById('post-order-btns').style.display = 'flex';
             document.getElementById('cart-bar').style.display = 'flex';
+            document.getElementById('tb').innerText = grandTotal;
             saveState();
         }
 
         function handlePayment() {
-            if(confirm("Confirm Grand Total Payment: ₹" + grandTotal + "?")) {
+            if(confirm("Confirm Final Payment of ₹" + grandTotal + "?")) {
                 socket.emit('sync_action', { table: TABLE_ID, type: 'PAY_SUCCESS' });
                 localStorage.setItem('royal_table_' + TABLE_ID, JSON.stringify({ isPaid: true }));
                 showThankYou(true);
@@ -257,8 +294,8 @@
                     document.getElementById('initial-btns').style.display = 'none';
                     document.getElementById('post-order-btns').style.display = 'flex';
                 }
-                document.getElementById('tb').innerText = currentBill;
-                if(currentBill > 0 || grandTotal > 0) document.getElementById('cart-bar').style.display = 'flex';
+                document.getElementById('tb').innerText = grandTotal + currentBill;
+                if(grandTotal > 0 || currentBill > 0) document.getElementById('cart-bar').style.display = 'flex';
             }
         }
 
